@@ -1,0 +1,35 @@
+name: Release
+
+on: [push]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install task
+        run: sudo snap install task --classic
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Cargo.toml version
+        run: |
+          sed -i "s/^version = \".*\"$/version = \"0.8.0\"/g" Cargo.toml
+
+      - name: Update Cargo.lock
+        run: task update
+
+      - name: Set snapcraft.yaml version
+        run: |
+          sed -i "s/^version: '.*'$/version: '0.8.0'/g" snapcraft.yaml
+
+      - name: Build image
+        run: task build-image
+
+      - name: Check
+        run: task check
