@@ -1,0 +1,25 @@
+app-id: org.cubic_vm.cubic
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: cubic
+modules:
+  - name: cubic
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/cubic/cargo
+        CARGO_NET_OFFLINE: 'true'
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml --verbose
+      - cargo build --offline --release --all-features
+      - install -Dm0755 target/release/cubic ${FLATPAK_DEST}/bin/cubic
+    sources:
+      - type: archive
+        url: https://github.com/cubic-vm/cubic.git
+        tag: "v0.10.0"
+        commit: "0284b00219cee734e3f6ee2cd6be2bd8004c3cf2"
+      - cargo-sources.json
