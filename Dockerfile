@@ -14,7 +14,8 @@ RUN apt update && \
         qemu-system-x86 \
         qemu-system-arm \
         python3-sphinx \
-        python3-sphinx-rtd-theme
+        python3-sphinx-rtd-theme \
+        libxkbcommon-x11-dev
 RUN rustup component add clippy rustfmt && \
     cargo install --locked cargo-audit@0.21.1 &&\
     cargo fetch

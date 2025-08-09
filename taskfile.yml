@@ -57,7 +57,7 @@ tasks:
   sh:
     deps: [build-image]
     cmds:
-      - $DOCKER_CMD -it $IMAGE  bash
+      - $DOCKER_CMD -it --env="DISPLAY" --net=host -v /home/cubic/.Xauthority:/root/.Xauthority $IMAGE  bash
 
   check:
     deps: [format, lint, test, audit]

@@ -50,6 +50,7 @@ serde_json = "^1"
 serde_yaml = "^0"
 libc = "^0"
 regex = "^1"
+iced = "^0"
 
 [profile.release]
 opt-level = 'z'
