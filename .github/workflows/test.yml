@@ -1,0 +1,28 @@
+---
+name: Test Pipeline
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - add-deb
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: sudo apt-get install -y devscripts build-essential debhelper
+
+      - name: Package Deb
+        run: ./scripts/generate-deb.sh v0.0.0
+
+      - name: Upload Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: cubic-debsrc
+          path: target/debian/cubic_*

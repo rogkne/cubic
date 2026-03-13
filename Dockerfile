@@ -9,6 +9,9 @@ ENV XDG_CACHE_HOME=/tmp/cache
 ENV XDG_RUNTIME_DIR=/tmp/runtime
 RUN apt update && \
     apt install -y \
+        devscripts \
+        build-essential \
+        dh-cargo \
         qemu-utils \
         genisoimage \
         qemu-system-x86 \

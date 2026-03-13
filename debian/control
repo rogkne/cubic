@@ -1,0 +1,12 @@
+Source: cubic
+Section: misc
+Priority: optional
+Maintainer: Roger Knecht <rknecht@pm.me>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+
+Package: cubic
+Architecture: any
+Depends: qemu-system-x86, qemu-system-arm, genisoimage
+Description: A lightweight command-line manager for virtual machines
+Homepage: https://github.com/cubic-vm/cubic

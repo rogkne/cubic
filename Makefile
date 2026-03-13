@@ -13,54 +13,78 @@ IMAGE=cubic:latest
 CMDS= run create instances images ports show modify console ssh scp start stop \
 		restart rename clone delete prune completions
 
-volume-%:
-	@if [ -z "`docker images -q $<`" ]; then docker build -t < .; fi
+all: target/release/cubic
 
-build-image: volume-${IMAGE_VOLUME} volume-${INSTANCE_VOLUME} volume-${BUILD_VOLUME} volume-${CARGO_VOLUME}
-	@if [ -z "`docker images -q ${IMAGE}`" ]; then docker build -t ${IMAGE} .; fi
+rustup:
+	rustup default stable
 
-clean: build-image
-	${DOCKER_CMD} ${IMAGE} cargo clean
+target/release/cubic: rustup
+	cargo build --locked --release
 
-cleanall: build-image
-	docker image rm -f ${IMAGE}
+install: target/release/cubic
+	cargo install --locked --bins --path . --root $(DESTDIR)/usr
 
-format: build-image
-	${DOCKER_CMD} ${IMAGE} cargo fmt --check
+clean: rustup
+	cargo clean
 
-fix-format: build-image
-	${DOCKER_CMD} ${IMAGE} cargo fmt
+build: rustup
+	cargo build
 
-lint: build-image
-	${DOCKER_CMD} ${IMAGE} cargo clippy -- -D warnings
+test: rustup
+	cargo test
 
-fix-lint: build-image
-	${DOCKER_CMD} ${IMAGE} cargo clippy --fix --allow-dirty --allow-staged
+check: rustup
+	cargo fmt --check
+	cargo clippy -- -D warnings
+	make test
+	cargo audit
 
-test: build-image
-	${DOCKER_CMD} ${IMAGE} cargo test
+fix: rustup
+	cargo fmt
+	cargo clippy --fix --allow-dirty --allow-staged
 
-audit: build-image
-	${DOCKER_CMD} ${IMAGE} cargo audit
+doc:
+	./scripts/generate-docs.sh
+	sphinx-build docs target/doc
+	python3 -m http.server -d target/doc 4000
 
-update: build-image
-	${DOCKER_CMD} ${IMAGE} cargo update
-
-sh: build-image
-	${DOCKER_CMD} -it ${IMAGE} bash
-
-check: format lint test audit
-
-fix: fix-format fix-lint
-
-build: build-image
-	${DOCKER_CMD} ${IMAGE} cargo build
-
-doc: build-image
-	@${DOCKER_CMD} -it ${IMAGE} ./scripts/generate-docs.sh
-	@${DOCKER_CMD} -it ${IMAGE} sphinx-build docs target/doc
-	@${DOCKER_CMD} -it ${IMAGE} python3 -m http.server -d target/doc 4000
+update: rustup
+	cargo update
 
 release: build-image
 	sed "s/^\(version =\).*$$/\1 \"${version}\"/g" -i Cargo.toml
 	make build
+
+dvolume-%:
+	@if [ -z "`docker images -q $<`" ]; then docker build -t < .; fi
+
+dbuild-image: dvolume-${IMAGE_VOLUME} dvolume-${INSTANCE_VOLUME} dvolume-${BUILD_VOLUME} dvolume-${CARGO_VOLUME}
+	@if [ -z "`docker images -q ${IMAGE}`" ]; then docker build -t ${IMAGE} .; fi
+
+dsh: dbuild-image
+	${DOCKER_CMD} -it ${IMAGE} bash
+
+dclean: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make clean
+
+dcleanall:
+	docker image rm -f ${IMAGE}
+	docker volume rm ${BUILD_VOLUME} ${CARGO_VOLUME}
+
+dbuild: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make build
+
+dtest: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make test
+
+dcheck: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make check
+
+dfix: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make fix
+
+ddoc: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make doc
+
+dupdate: dbuild-image
+	${DOCKER_CMD} ${IMAGE} make update
