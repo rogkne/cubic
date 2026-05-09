@@ -176,3 +176,41 @@ We are actively looking for help to improve Cubic. You can help in various ways:
 # :page_with_curl: License
 
 Cubic is dual-licensed under [Apache](LICENSE-APACHE) and [MIT](LICENSE-MIT).
+
+# :balance_scale: How does Cubic compare to other tools?
+
+- **[Multipass](https://multipass.run)** — developed by Canonical and released under GPL-3.0,
+  Multipass is a CLI VM manager similar to Cubic in concept, but backed by a privileged
+  background daemon and focused primarily on Ubuntu images. Cubic is daemonless, supports a
+  wider range of Linux distributions, and is released under a permissive license.
+
+- **[Vagrant](https://www.vagrantup.com)** — developed by HashiCorp and distributed under
+  the Business Source License, Vagrant provisions VMs through a pluggable hypervisor such as
+  VirtualBox or VMware and uses community-maintained boxes rather than official vendor images.
+  Its declarative Vagrantfile format is well suited for teams sharing reproducible
+  environments. Cubic skips the extra toolchain and boots directly from official cloud images
+  using QEMU.
+
+- **[VirtualBox](https://www.virtualbox.org)** — developed by Oracle and released under
+  GPL-2.0, VirtualBox is a graphical VM manager that requires a kernel module and elevated
+  privileges to install. It supports a broad range of guest operating systems including
+  Windows and macOS. Cubic trades the GUI for a lightweight CLI, requires no kernel module,
+  and runs entirely as an unprivileged user.
+
+- **[Docker](https://www.docker.com)** — developed by Docker Inc. and released under
+  Apache-2.0, Docker runs Linux containers that share the host kernel rather than full VMs,
+  making it fast and well suited for packaging and deploying applications. The Docker daemon
+  runs as root by default and Docker Desktop requires a commercial license for larger
+  organisations. Cubic provides stronger isolation through full VMs and is rootless and
+  daemonless by design.
+
+- **[Podman](https://podman.io)** — a community project backed by Red Hat and released under
+  Apache-2.0, Podman is rootless and daemonless like Cubic and a popular drop-in replacement
+  for Docker. The key difference is the isolation model: Podman runs containers that share
+  the host kernel, while Cubic runs full VMs with a separate kernel per instance.
+
+- **[UTM](https://mac.getutm.app)** — a community-driven project released under MIT, UTM is
+  a graphical QEMU-based VM manager for macOS and iOS that can also emulate foreign CPU
+  architectures such as x86 on Apple Silicon. Cubic and UTM share the same QEMU foundation,
+  but Cubic is a cross-platform CLI tool that automates provisioning through cloud-init
+  rather than relying on manual guest installation.
