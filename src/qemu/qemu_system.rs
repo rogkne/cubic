@@ -130,10 +130,16 @@ impl QemuSystem {
             ));
     }
 
-    pub fn add_drive(&mut self, path: &str, format: &str) {
+    pub fn add_disk(&mut self, path: &str) {
+        self.command.arg("-drive").arg(format!(
+            "if=virtio,format=qcow2,discard=unmap,detect-zeroes=unmap,file={path}"
+        ));
+    }
+
+    pub fn add_iso(&mut self, path: &str) {
         self.command
             .arg("-drive")
-            .arg(format!("if=virtio,format={format},file={path}"));
+            .arg(format!("if=virtio,format=raw,file={path}"));
     }
 
     pub fn set_qemu_args(&mut self, args: &str) {
@@ -199,6 +205,26 @@ mod tests {
                 .get_command()
                 .contains("-L /snap/cubic/current/usr/share/qemu")
         );
+    }
+
+    #[test]
+    fn test_add_disk_lets_guest_trim_free_space_in_the_image() {
+        let mut qemu = QemuSystem::from(&SystemMock::new(), Arch::AMD64).unwrap();
+        qemu.add_disk("/data/machines/test/machine.img");
+        assert!(qemu.command.get_command().contains(
+            "-drive if=virtio,format=qcow2,discard=unmap,detect-zeroes=unmap,file=/data/machines/test/machine.img"
+        ));
+    }
+
+    #[test]
+    fn test_add_iso_attaches_the_seed_without_discard() {
+        let mut qemu = QemuSystem::from(&SystemMock::new(), Arch::AMD64).unwrap();
+        qemu.add_iso("/data/machines/test/cloud-init.iso");
+        let command = qemu.command.get_command();
+        assert!(
+            command.contains("-drive if=virtio,format=raw,file=/data/machines/test/cloud-init.iso")
+        );
+        assert!(!command.contains("discard"));
     }
 
     #[test]
