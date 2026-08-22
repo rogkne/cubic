@@ -284,6 +284,17 @@ impl FileSystem for SystemMock {
         }
     }
 
+    fn copy_file(&self, from: &Path, to: &Path) -> Result<()> {
+        let mut file_system = self.file_system.borrow_mut();
+        let content = file_system.get_file(from).ok_or_else(|| Error::CopyFile {
+            from: from.to_path_buf(),
+            to: to.to_path_buf(),
+            source: io::ErrorKind::NotFound.into(),
+        })?;
+        file_system.set_file(to, &content);
+        Ok(())
+    }
+
     fn remove_file(&self, path: &Path) -> Result<()> {
         self.file_system
             .borrow_mut()
@@ -487,6 +498,34 @@ mod tests {
                 .read_file_to_string(Path::new("/data/new.txt"))
                 .unwrap(),
             "hello"
+        );
+    }
+
+    #[test]
+    fn copy_file_keeps_the_source_and_writes_the_target() {
+        let system = SystemMock::new().add_file("/data/old.txt", b"hello");
+
+        system
+            .copy_file(Path::new("/data/old.txt"), Path::new("/data/new.txt"))
+            .unwrap();
+
+        assert!(system.exists_path(Path::new("/data/old.txt")));
+        assert_eq!(
+            system
+                .read_file_to_string(Path::new("/data/new.txt"))
+                .unwrap(),
+            "hello"
+        );
+    }
+
+    #[test]
+    fn copy_file_fails_when_source_missing() {
+        let system = SystemMock::new();
+
+        assert!(
+            system
+                .copy_file(Path::new("/data/old.txt"), Path::new("/data/new.txt"))
+                .is_err()
         );
     }
 

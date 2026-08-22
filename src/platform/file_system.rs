@@ -17,5 +17,6 @@ pub trait FileSystem {
     fn write_file(&self, path: &Path, contents: &[u8]) -> Result<()>;
     fn write_secret_file(&self, path: &Path, contents: &[u8]) -> Result<()>;
     fn rename_file(&self, from: &Path, to: &Path) -> Result<()>;
+    fn copy_file(&self, from: &Path, to: &Path) -> Result<()>;
     fn remove_file(&self, path: &Path) -> Result<()>;
 }

@@ -62,23 +62,6 @@ impl<'a> QemuImg<'a> {
         }
     }
 
-    pub fn convert(&self, src: &str, dst: &str) -> Result<()> {
-        let mut command = self.command();
-        command
-            .arg("convert")
-            .arg("-f")
-            .arg("qcow2")
-            .arg("-O")
-            .arg("qcow2")
-            .arg(src)
-            .arg(dst);
-
-        self.system
-            .run_command(&command)
-            .map(|_| ())
-            .map_err(Self::map_error)
-    }
-
     pub fn resize(&self, image: &str, size: u64) -> Result<()> {
         let mut command = self.command();
         command.arg("resize").arg(image).arg(size.to_string());
@@ -182,19 +165,6 @@ mod tests {
             system.get_executed_commands(),
             vec!["qemu-img resize /data/machines/test/image 2048"]
         );
-    }
-
-    #[test]
-    fn test_convert_reports_the_failure_of_qemu_img() {
-        let system = SystemMock::new().add_failing_command(
-            "qemu-img convert -f qcow2 -O qcow2 /cache/image /data/machines/test/image",
-            "boom",
-        );
-
-        assert!(matches!(
-            QemuImg::new(&system).convert("/cache/image", "/data/machines/test/image"),
-            Err(Error::SystemCommandFailed(_, stderr)) if stderr == "boom"
-        ));
     }
 
     #[test]
