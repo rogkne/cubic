@@ -31,13 +31,11 @@ impl CreateInstanceAction {
         // Create SSH key
         SshKeyGenerator::new().generate_key(system, &Path::new(tmp_dir).join("ssh_client_key"))?;
 
-        let qemu_img = QemuImg::new(system);
-
         // Create virtual machine instance image file
-        qemu_img.convert(image_path, tmp_image)?;
+        system.copy_file(Path::new(image_path), Path::new(tmp_image))?;
 
         // Set disk capacity
-        qemu_img.resize(tmp_image, instance.disk_capacity.get_bytes() as u64)?;
+        QemuImg::new(system).resize(tmp_image, instance.disk_capacity.get_bytes() as u64)?;
 
         // Write configuration file
         instance.name = format!("{instance_name}.tmp");

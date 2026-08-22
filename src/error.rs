@@ -164,6 +164,14 @@ Troubleshoot:
         source: io::Error,
     },
 
+    #[error("Cannot copy file from '{}' to '{}' ({source})", from.display(), to.display())]
+    CopyFile {
+        from: PathBuf,
+        to: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("Cannot write directory '{}'", .0.display())]
     ReadOnlyDir(PathBuf),
 

@@ -120,6 +120,14 @@ impl FileSystem for OsSystem {
         })
     }
 
+    fn copy_file(&self, from: &Path, to: &Path) -> Result<()> {
+        fs::copy(from, to).map(|_| ()).map_err(|e| Error::CopyFile {
+            from: from.to_path_buf(),
+            to: to.to_path_buf(),
+            source: e,
+        })
+    }
+
     fn remove_file(&self, path: &Path) -> Result<()> {
         fs::remove_file(path).map_err(|e| Error::from_fs(FsOperation::RemoveFile, path, e))
     }

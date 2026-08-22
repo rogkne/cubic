@@ -169,10 +169,7 @@ mod tests {
             .into_owned();
         let target_image = format!("{target_dir}.tmp/machine.img");
         let system = SystemMock::new()
-            .add_command_output(
-                &format!("qemu-img convert -f qcow2 -O qcow2 {source_image} {target_image}"),
-                b"",
-            )
+            .add_file(&source_image, b"qcow2 image")
             .add_command_output(&format!("qemu-img resize {target_image} 0"), b"");
         let console_system = SystemMock::new();
         let console = &mut Console::new(&console_system);
