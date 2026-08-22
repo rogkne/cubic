@@ -66,6 +66,10 @@ Cubic checks with QEMU that the accelerator works on the host and falls back to
 insist on hardware acceleration and ``--accel off`` to run in software
 emulation.
 
+Cubic attaches the instance disk with discard enabled, so files deleted inside
+the VM release their space in the host image. Cloud images mount the root
+filesystem with ``discard``, so this needs no setup inside the VM.
+
 Each instance keeps everything it owns in one directory under
 ``~/.local/share/cubic/machines/<name>/``. That directory holds the
 configuration, the disk image, the SSH key, the cloud-init seed image and,

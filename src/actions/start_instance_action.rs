@@ -128,8 +128,8 @@ impl StartInstanceAction {
         qemu_system.set_cpus(self.instance.cpus);
         qemu_system.set_memory(self.instance.mem.get_bytes() as u64);
         qemu_system.set_console(self.instance.console_port.unwrap(), &instance_dir);
-        qemu_system.add_drive(&env.get_instance_image_file(&self.instance.name), "qcow2");
-        qemu_system.add_drive(&env.get_cloud_init_file(&self.instance.name), "raw");
+        qemu_system.add_disk(&env.get_instance_image_file(&self.instance.name));
+        qemu_system.add_iso(&env.get_cloud_init_file(&self.instance.name));
         qemu_system.set_network(
             &self.instance.hostfwd,
             self.instance.ssh_port,
