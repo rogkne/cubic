@@ -1,7 +1,8 @@
 use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::{Error, Result};
-use crate::models::{InstanceName, InstanceSnapshotName};
+use crate::models::{InstanceName, SnapshotName};
+use crate::util::Either;
 use crate::view::{ConfirmDialog, Console};
 use clap::Parser;
 use std::collections::HashSet;
@@ -36,27 +37,37 @@ pub struct DeleteCommand {
     yes: commands::YesArg,
     /// Names of the virtual machine instances or their snapshots
     #[clap(value_name = "TARGETS")]
-    targets: Vec<InstanceSnapshotName>,
+    targets: Vec<Either<InstanceName, SnapshotName>>,
 }
 
 impl DeleteCommand {
+    fn get_instance(target: &Either<InstanceName, SnapshotName>) -> &InstanceName {
+        match target {
+            Either::Left(instance) => instance,
+            Either::Right(snapshot) => snapshot.get_instance(),
+        }
+    }
+
+    fn is_instance(target: &Either<InstanceName, SnapshotName>) -> bool {
+        matches!(target, Either::Left(_))
+    }
+
     /// The targets to act on. A snapshot whose instance is deleted as a whole is
     /// dropped, because deleting the instance already removes its snapshots.
     /// Duplicates are dropped so a target is never deleted twice.
-    fn get_targets(&self) -> Vec<&InstanceSnapshotName> {
+    fn get_targets(&self) -> Vec<&Either<InstanceName, SnapshotName>> {
         let deleted_instances: HashSet<&InstanceName> = self
             .targets
             .iter()
-            .filter(|target| target.get_snapshot().is_none())
-            .map(|target| target.get_instance())
+            .filter(|target| Self::is_instance(target))
+            .map(Self::get_instance)
             .collect();
 
         let mut seen = HashSet::new();
         self.targets
             .iter()
             .filter(|target| {
-                target.get_snapshot().is_none()
-                    || !deleted_instances.contains(target.get_instance())
+                Self::is_instance(target) || !deleted_instances.contains(Self::get_instance(target))
             })
             .filter(|target| seen.insert(*target))
             .collect()
@@ -72,19 +83,17 @@ impl Command for DeleteCommand {
         }
 
         for target in &self.targets {
-            if !instance_store.exists(target.get_instance().as_str()) {
-                return Err(Error::UnknownInstance(target.get_instance().to_string()));
+            let instance_name = Self::get_instance(target);
+            if !instance_store.exists(instance_name.as_str()) {
+                return Err(Error::UnknownInstance(instance_name.to_string()));
             }
 
-            if let Some(snapshot_name) = target.get_snapshot() {
-                let instance = LoadInstanceAction::new().run(
-                    context,
-                    console,
-                    target.get_instance().as_str(),
-                )?;
+            if let Either::Right(snapshot_name) = target {
+                let instance =
+                    LoadInstanceAction::new().run(context, console, instance_name.as_str())?;
                 if !instance.has_snapshot(snapshot_name.as_str()) {
                     return Err(Error::UnknownSnapshot(
-                        target.get_instance().to_string(),
+                        instance_name.to_string(),
                         snapshot_name.as_str().to_string(),
                     ));
                 }
@@ -99,25 +108,25 @@ impl Command for DeleteCommand {
         }
 
         for target in &targets {
-            let instance_name = target.get_instance();
+            let instance_name = Self::get_instance(target);
 
             // Free the disk lock first. A full instance delete can kill it, a
             // snapshot needs the instance shut down cleanly.
             commands::StopCommand {
                 all: false.into(),
                 wait: true,
-                kill: target.get_snapshot().is_none(),
+                kill: Self::is_instance(target),
                 instances: vec![instance_name.clone()].into(),
             }
             .run(console, context)?;
 
             let instance =
                 LoadInstanceAction::new().run(context, console, instance_name.as_str())?;
-            match target.get_snapshot() {
-                Some(snapshot_name) => {
+            match target {
+                Either::Right(snapshot_name) => {
                     instance_store.delete_snapshot(&instance, snapshot_name.as_str())?
                 }
-                None => instance_store.delete(&instance)?,
+                Either::Left(_) => instance_store.delete(&instance)?,
             }
             console.debug(&format!("Deleted {target}"));
         }
@@ -178,7 +187,7 @@ mod tests {
             yes: commands::YesArg { value: true },
             targets: targets
                 .iter()
-                .map(|target| InstanceSnapshotName::from_str(target).unwrap())
+                .map(|target| target.parse().unwrap())
                 .collect(),
         }
     }
