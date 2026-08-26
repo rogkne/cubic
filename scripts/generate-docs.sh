@@ -4,7 +4,7 @@ set -euo pipefail
 version="$1"
 
 CMDS=(run create instances images ports show modify console ssh scp exec start \
-    stop restart rename clone delete prune completions)
+    stop restart rename clone snapshot restore delete prune completions)
 
 function generate_cmd_doc() {
     name="$1"
@@ -58,6 +58,7 @@ Cubic
    howto/install
    howto/shell_completions
    howto/getting_started
+   howto/snapshots
    howto/http_server
    howto/ssh_connect
    howto/console_login
@@ -103,6 +104,7 @@ Features
 * Supports Linux, macOS and Windows hosts with amd64 and arm64 architecture
 * Supports hardware acceleration with KVM (Linux), Hypervisor (macOS), WHPX (Windows) and NVMM (BSD)
 * Boots each VM with EDK2 UEFI firmware, discovered automatically per architecture
+* Snapshots the disk of a VM instance and restores it later
 * No background privileged service and runs with standard user rights, no admin or root needed
 * Written in Rust
 

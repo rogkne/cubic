@@ -1,4 +1,4 @@
-use crate::models::{Arch, DataSize, PortForward, UserName};
+use crate::models::{Arch, DataSize, PortForward, Snapshot, UserName};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13,6 +13,9 @@ pub struct Instance {
     pub mem: DataSize,
     #[serde(skip)]
     pub disk_used: Option<DataSize>,
+    /// Read back from the disk image, never written to the config
+    #[serde(skip)]
+    pub snapshots: Vec<Snapshot>,
     pub disk_capacity: DataSize,
     pub ssh_port: u16,
     #[serde(default)]
@@ -28,4 +31,10 @@ pub struct Instance {
     /// Guest SSH host key, pinned on the first connect
     #[serde(default)]
     pub ssh_host_key: Option<String>,
+}
+
+impl Instance {
+    pub fn has_snapshot(&self, name: &str) -> bool {
+        self.snapshots.iter().any(|snapshot| snapshot.name == name)
+    }
 }

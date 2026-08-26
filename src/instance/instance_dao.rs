@@ -139,6 +139,48 @@ impl InstanceStore for InstanceDao {
         }
     }
 
+    fn create_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+        if self.is_running(instance) {
+            Err(Error::InstanceNotStopped(instance.name.to_string()))
+        } else if instance.has_snapshot(name) {
+            Err(Error::SnapshotAlreadyExists(
+                instance.name.to_string(),
+                name.to_string(),
+            ))
+        } else {
+            QemuImg::new(self.system.as_ref())
+                .create_snapshot(&self.env.get_instance_image_file(&instance.name), name)
+        }
+    }
+
+    fn restore_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+        if self.is_running(instance) {
+            Err(Error::InstanceNotStopped(instance.name.to_string()))
+        } else if !instance.has_snapshot(name) {
+            Err(Error::UnknownSnapshot(
+                instance.name.to_string(),
+                name.to_string(),
+            ))
+        } else {
+            QemuImg::new(self.system.as_ref())
+                .restore_snapshot(&self.env.get_instance_image_file(&instance.name), name)
+        }
+    }
+
+    fn delete_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+        if self.is_running(instance) {
+            Err(Error::InstanceNotStopped(instance.name.to_string()))
+        } else if !instance.has_snapshot(name) {
+            Err(Error::UnknownSnapshot(
+                instance.name.to_string(),
+                name.to_string(),
+            ))
+        } else {
+            QemuImg::new(self.system.as_ref())
+                .delete_snapshot(&self.env.get_instance_image_file(&instance.name), name)
+        }
+    }
+
     fn is_running(&self, instance: &Instance) -> bool {
         self.read_running_pid(instance).is_some()
     }
@@ -315,6 +357,67 @@ mod tests {
         assert!(matches!(
             dao.kill(&build_instance()),
             Err(Error::InstanceNotRunning(name)) if name == "test"
+        ));
+    }
+
+    fn build_instance_with_snapshot() -> Instance {
+        Instance {
+            name: "test".to_string(),
+            snapshots: vec![crate::models::Snapshot {
+                name: "clean".to_string(),
+            }],
+            ..Instance::default()
+        }
+    }
+
+    #[test]
+    fn test_create_snapshot_runs_qemu_img() {
+        let env = build_env();
+        let command = format!(
+            "qemu-img snapshot -c clean {}",
+            env.get_instance_image_file("test")
+        );
+        let system = Rc::new(SystemMock::new().add_command_output(&command, b""));
+        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+
+        dao.create_snapshot(&build_instance(), "clean").unwrap();
+
+        assert_eq!(system.get_executed_commands(), vec![command]);
+    }
+
+    #[test]
+    fn test_create_snapshot_rejects_a_duplicate_name() {
+        let dao = InstanceDao::new(Rc::new(SystemMock::new()), &build_env()).unwrap();
+
+        assert!(matches!(
+            dao.create_snapshot(&build_instance_with_snapshot(), "clean"),
+            Err(Error::SnapshotAlreadyExists(instance, snapshot))
+                if instance == "test" && snapshot == "clean"
+        ));
+    }
+
+    #[test]
+    fn test_create_snapshot_rejects_a_running_instance() {
+        let env = build_env();
+        let system = SystemMock::new()
+            .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
+            .add_process(1234);
+        let dao = InstanceDao::new(Rc::new(system), &env).unwrap();
+
+        assert!(matches!(
+            dao.create_snapshot(&build_instance(), "clean"),
+            Err(Error::InstanceNotStopped(name)) if name == "test"
+        ));
+    }
+
+    #[test]
+    fn test_restore_snapshot_rejects_an_unknown_name() {
+        let dao = InstanceDao::new(Rc::new(SystemMock::new()), &build_env()).unwrap();
+
+        assert!(matches!(
+            dao.restore_snapshot(&build_instance(), "clean"),
+            Err(Error::UnknownSnapshot(instance, snapshot))
+                if instance == "test" && snapshot == "clean"
         ));
     }
 
