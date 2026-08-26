@@ -51,6 +51,7 @@ Cubic fits a lot of everyday workflows:
 - Supports the following host OS: **Linux**, **macOS**, **Windows**
 - Supports **amd64** and **arm64** CPU architectures
 - Supports hardware acceleration with **KVM** (Linux), **Hypervisor** (macOS), **WHPX** (Windows) and **NVMM** (BSD)
+- Snapshot and restore the disk of a VM instance
 - Daemonless design which does not require root privileges
 - Written in Rust
 
@@ -190,7 +191,9 @@ Commands:
   restart      Restart VM instances
   rename       Rename VM instances
   clone        Clone VM instances
-  delete       Delete VM instances
+  snapshot     Create a snapshot of a VM instance
+  restore      Restore a VM instance from a snapshot
+  delete       Delete VM instances and snapshots
   prune        Clear caches
   completions  Generate shell completion scripts
 

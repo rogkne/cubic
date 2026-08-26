@@ -15,6 +15,9 @@ pub mod tests {
         // moved into a Context.
         pub killed: Arc<Mutex<Vec<String>>>,
         pub stored: Arc<Mutex<Vec<Instance>>>,
+        pub deleted: Arc<Mutex<Vec<String>>>,
+        // Records the snapshot calls as "<action> <instance>/<snapshot>".
+        pub snapshots: Arc<Mutex<Vec<String>>>,
     }
 
     impl InstanceStoreMock {
@@ -29,12 +32,21 @@ pub mod tests {
                 pids: Vec::new(),
                 killed: Arc::new(Mutex::new(Vec::new())),
                 stored: Arc::new(Mutex::new(Vec::new())),
+                deleted: Arc::new(Mutex::new(Vec::new())),
+                snapshots: Arc::new(Mutex::new(Vec::new())),
             }
         }
 
         pub fn set_pid(mut self, name: &str, pid: u64) -> Self {
             self.pids.push((name.to_string(), pid));
             self
+        }
+
+        fn record_snapshot(&self, action: &str, instance: &Instance, name: &str) {
+            self.snapshots
+                .lock()
+                .unwrap()
+                .push(format!("{action} {}/{name}", instance.name));
         }
     }
 
@@ -68,7 +80,23 @@ pub mod tests {
             Ok(())
         }
 
-        fn delete(&self, _instance: &Instance) -> Result<()> {
+        fn delete(&self, instance: &Instance) -> Result<()> {
+            self.deleted.lock().unwrap().push(instance.name.clone());
+            Ok(())
+        }
+
+        fn create_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+            self.record_snapshot("create", instance, name);
+            Ok(())
+        }
+
+        fn restore_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+            self.record_snapshot("restore", instance, name);
+            Ok(())
+        }
+
+        fn delete_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
+            self.record_snapshot("delete", instance, name);
             Ok(())
         }
 

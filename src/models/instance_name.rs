@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 static INSTANCE_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[\\w_-]+$").unwrap());
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InstanceName {
     name: String,
 }

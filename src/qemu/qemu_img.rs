@@ -1,16 +1,19 @@
 use crate::error::{Error, Result};
-use crate::models::{DataSize, Environment, Instance};
+use crate::models::{DataSize, Environment, Instance, Snapshot};
 use crate::platform::System;
 use crate::qemu::QemuPathBuilder;
 use crate::util::SystemCommand;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ImageInfo {
     #[serde(alias = "actual-size")]
     pub actual_size: u64,
     #[serde(alias = "virtual-size")]
     pub virtual_size: u64,
+    // Absent from the JSON until the image holds its first snapshot.
+    #[serde(default)]
+    pub snapshots: Vec<Snapshot>,
 }
 
 pub struct QemuImg<'a> {
@@ -59,12 +62,35 @@ impl<'a> QemuImg<'a> {
         if let Some(info) = self.get_image_info(env, instance) {
             instance.disk_used = Some(DataSize::new(info.actual_size as usize));
             instance.disk_capacity = DataSize::new(info.virtual_size as usize);
+            instance.snapshots = info.snapshots;
         }
     }
 
     pub fn resize(&self, image: &str, size: u64) -> Result<()> {
         let mut command = self.command();
         command.arg("resize").arg(image).arg(size.to_string());
+
+        self.system
+            .run_command(&command)
+            .map(|_| ())
+            .map_err(Self::map_error)
+    }
+
+    pub fn create_snapshot(&self, image: &str, name: &str) -> Result<()> {
+        self.run_snapshot_command(image, name, "-c")
+    }
+
+    pub fn restore_snapshot(&self, image: &str, name: &str) -> Result<()> {
+        self.run_snapshot_command(image, name, "-a")
+    }
+
+    pub fn delete_snapshot(&self, image: &str, name: &str) -> Result<()> {
+        self.run_snapshot_command(image, name, "-d")
+    }
+
+    fn run_snapshot_command(&self, image: &str, name: &str, action: &str) -> Result<()> {
+        let mut command = self.command();
+        command.arg("snapshot").arg(action).arg(name).arg(image);
 
         self.system
             .run_command(&command)
@@ -187,12 +213,69 @@ mod tests {
                 "extended-l2": false
             }
         },
-        "dirty-flag": false
+        "dirty-flag": false,
+        "snapshots": [
+            {
+                "icount": 0,
+                "vm-clock-nsec": 0,
+                "name": "clean",
+                "date-sec": 1787430192,
+                "date-nsec": 207919000,
+                "vm-clock-sec": 0,
+                "id": "1",
+                "vm-state-size": 0
+            }
+        ]
         }
         "#;
 
         let result: ImageInfo = serde_json::from_str(input).unwrap();
         assert_eq!(result.actual_size, 200704);
+        assert_eq!(result.snapshots.len(), 1);
+        assert_eq!(result.snapshots[0].name, "clean");
+    }
+
+    #[test]
+    fn test_snapshot_commands_pass_the_flag_and_name_to_qemu_img() {
+        let image = "/data/machines/test/machine.img";
+        let system = SystemMock::new()
+            .add_command_output(&format!("qemu-img snapshot -c clean {image}"), b"")
+            .add_command_output(&format!("qemu-img snapshot -a clean {image}"), b"")
+            .add_command_output(&format!("qemu-img snapshot -d clean {image}"), b"");
+        let qemu_img = QemuImg::new(&system);
+
+        qemu_img.create_snapshot(image, "clean").unwrap();
+        qemu_img.restore_snapshot(image, "clean").unwrap();
+        qemu_img.delete_snapshot(image, "clean").unwrap();
+
+        assert_eq!(
+            system.get_executed_commands(),
+            vec![
+                format!("qemu-img snapshot -c clean {image}"),
+                format!("qemu-img snapshot -a clean {image}"),
+                format!("qemu-img snapshot -d clean {image}"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_read_disk_info_reads_the_snapshots() {
+        let env = build_env();
+        let system = SystemMock::new().add_command_output(
+            &build_info_command(&env),
+            br#"{"virtual-size": 1073741824, "actual-size": 200704,
+                 "snapshots": [{"name": "clean"}, {"name": "deps"}]}"#,
+        );
+        let mut instance = build_instance();
+
+        QemuImg::new(&system).read_disk_info(&env, &mut instance);
+
+        let names: Vec<&str> = instance
+            .snapshots
+            .iter()
+            .map(|snapshot| snapshot.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["clean", "deps"]);
     }
 
     #[test]

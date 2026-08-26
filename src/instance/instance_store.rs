@@ -13,6 +13,10 @@ pub trait InstanceStore {
     fn resize(&self, instance: &mut Instance, size: u64) -> Result<()>;
     fn delete(&self, instance: &Instance) -> Result<()>;
 
+    fn create_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
+    fn restore_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
+    fn delete_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
+
     fn is_running(&self, instance: &Instance) -> bool;
     fn get_pid(&self, instance: &Instance) -> Option<u64>;
     fn kill(&self, instance: &Instance) -> Result<()>;

@@ -89,6 +89,12 @@ pub enum Error {
     #[error("Cannot shrink the disk of the instance '{0}'")]
     CannotShrinkDisk(String),
 
+    #[error("Instance '{0}' has no snapshot '{1}'")]
+    UnknownSnapshot(String, String),
+
+    #[error("Instance '{0}' already has a snapshot '{1}'")]
+    SnapshotAlreadyExists(String, String),
+
     #[error(
         "Hardware acceleration needs a guest arch equal to the host arch.\n\nInstance '{0}' is {1} and this host is {2}.\n\nRun it with `--accel off` to use software emulation."
     )]

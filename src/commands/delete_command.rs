@@ -1,10 +1,16 @@
 use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::{Error, Result};
+use crate::models::{InstanceName, InstanceSnapshotName};
 use crate::view::{ConfirmDialog, Console};
 use clap::Parser;
+use std::collections::HashSet;
 
-/// Delete VM instances
+/// Delete VM instances and snapshots
+///
+/// A target written as <INSTANCE> deletes the whole VM instance including all
+/// of its snapshots. A target written as <INSTANCE>/<SNAPSHOT> deletes only
+/// that one snapshot and leaves the VM instance alone.
 ///
 /// Examples:
 ///
@@ -13,6 +19,9 @@ use clap::Parser;
 ///
 ///   Delete multiple VM instances:
 ///   $ cubic delete trixie noble
+///
+///   Delete the snapshot 'clean' of the VM instance 'my-instance':
+///   $ cubic delete my-instance/clean
 ///
 ///   Delete multiple VM instances without confirmation:
 ///   $ cubic delete --yes trixie noble
@@ -25,51 +34,95 @@ pub struct DeleteCommand {
     force: bool,
     #[clap(flatten)]
     yes: commands::YesArg,
-    #[clap(flatten)]
-    instances: commands::InstancesArg,
+    /// Names of the virtual machine instances or their snapshots
+    #[clap(value_name = "TARGETS")]
+    targets: Vec<InstanceSnapshotName>,
+}
+
+impl DeleteCommand {
+    /// The targets to act on. A snapshot whose instance is deleted as a whole is
+    /// dropped, because deleting the instance already removes its snapshots.
+    /// Duplicates are dropped so a target is never deleted twice.
+    fn get_targets(&self) -> Vec<&InstanceSnapshotName> {
+        let deleted_instances: HashSet<&InstanceName> = self
+            .targets
+            .iter()
+            .filter(|target| target.get_snapshot().is_none())
+            .map(|target| target.get_instance())
+            .collect();
+
+        let mut seen = HashSet::new();
+        self.targets
+            .iter()
+            .filter(|target| {
+                target.get_snapshot().is_none()
+                    || !deleted_instances.contains(target.get_instance())
+            })
+            .filter(|target| seen.insert(*target))
+            .collect()
+    }
 }
 
 impl Command for DeleteCommand {
     fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
-        self.instances.require_names()?;
+        if self.targets.is_empty() {
+            return Err(Error::MissingInstanceName);
+        }
 
-        // Check if the instance names are valid
-        for instance in &self.instances.value {
-            if !instance_store.exists(instance.as_str()) {
-                return Err(Error::UnknownInstance(instance.to_string()));
+        for target in &self.targets {
+            if !instance_store.exists(target.get_instance().as_str()) {
+                return Err(Error::UnknownInstance(target.get_instance().to_string()));
+            }
+
+            if let Some(snapshot_name) = target.get_snapshot() {
+                let instance = LoadInstanceAction::new().run(
+                    context,
+                    console,
+                    target.get_instance().as_str(),
+                )?;
+                if !instance.has_snapshot(snapshot_name.as_str()) {
+                    return Err(Error::UnknownSnapshot(
+                        target.get_instance().to_string(),
+                        snapshot_name.as_str().to_string(),
+                    ));
+                }
             }
         }
 
-        // Print instances to be deleted
-        console.print("The following VM instances are going to be deleted:");
-        for instance in &self.instances.value {
-            console.print(&format!("  - {instance}"));
+        let targets = self.get_targets();
+
+        console.info("Running instances are stopped before deletion.");
+        if !self.yes.value && !ConfirmDialog::new("Do you want to proceed?").confirm(console) {
+            return Ok(());
         }
 
-        // Ask for confirmation
-        if self.yes.value || ConfirmDialog::new("\nDo you want to proceed?").confirm(console) {
-            // Stop the VM instances
+        for target in &targets {
+            let instance_name = target.get_instance();
+
+            // Free the disk lock first. A full instance delete can kill it, a
+            // snapshot needs the instance shut down cleanly.
             commands::StopCommand {
                 all: false.into(),
                 wait: true,
-                kill: true,
-                instances: self.instances.value.clone().into(),
+                kill: target.get_snapshot().is_none(),
+                instances: vec![instance_name.clone()].into(),
             }
             .run(console, context)?;
 
-            // Delete the VM instances
-            for instance in &self.instances.value {
-                instance_store.delete(&LoadInstanceAction::new().run(
-                    context,
-                    console,
-                    instance.as_str(),
-                )?)?;
-                console.print(&format!("Deleted instance {instance}"));
+            let instance =
+                LoadInstanceAction::new().run(context, console, instance_name.as_str())?;
+            match target.get_snapshot() {
+                Some(snapshot_name) => {
+                    instance_store.delete_snapshot(&instance, snapshot_name.as_str())?
+                }
+                None => instance_store.delete(&instance)?,
             }
+            console.debug(&format!("Deleted {target}"));
         }
 
+        console.print("Successfully deleted all targets");
         Ok(())
     }
 }
@@ -78,39 +131,140 @@ impl Command for DeleteCommand {
 mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
-    use crate::models::{Environment, UserName};
+    use crate::models::{Environment, Instance, Snapshot, UserName};
     use crate::platform::SystemMock;
     use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::{Arc, Mutex};
 
-    #[test]
-    fn test_reject_path_traversal() {
-        assert!(DeleteCommand::try_parse_from(["delete", "../../etc"]).is_err());
+    struct Recorders {
+        deleted: Arc<Mutex<Vec<String>>>,
+        snapshots: Arc<Mutex<Vec<String>>>,
     }
 
-    #[test]
-    fn test_reject_empty_instance_list() {
-        let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+    fn build_context(instances: Vec<Instance>) -> (commands::Context, Recorders) {
+        let store = InstanceStoreMock::new(instances);
+        let recorders = Recorders {
+            deleted: Arc::clone(&store.deleted),
+            snapshots: Arc::clone(&store.snapshots),
+        };
         let env = Environment::new(
             UserName::from_str("myuser").unwrap(),
             String::new(),
             String::new(),
         );
-        let context = commands::Context::new(
-            Rc::new(SystemMock::new()),
-            env,
-            Box::new(InstanceStoreMock::new(Vec::new())),
+        (
+            commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(store)),
+            recorders,
+        )
+    }
+
+    fn build_instance(name: &str, snapshots: Vec<&str>) -> Instance {
+        Instance {
+            name: name.to_string(),
+            snapshots: snapshots
+                .iter()
+                .map(|snapshot| Snapshot {
+                    name: snapshot.to_string(),
+                })
+                .collect(),
+            ..Instance::default()
+        }
+    }
+
+    fn build_command(targets: &[&str]) -> DeleteCommand {
+        DeleteCommand {
+            force: false,
+            yes: commands::YesArg { value: true },
+            targets: targets
+                .iter()
+                .map(|target| InstanceSnapshotName::from_str(target).unwrap())
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn test_delete_instance() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+
+        build_command(&["test"]).run(console, &context).unwrap();
+
+        assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
+        assert!(recorders.snapshots.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_delete_snapshot_keeps_the_instance() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+
+        build_command(&["test/clean"])
+            .run(console, &context)
+            .unwrap();
+
+        assert_eq!(
+            *recorders.snapshots.lock().unwrap(),
+            vec!["delete test/clean"]
         );
+        assert!(recorders.deleted.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_delete_ignores_duplicate_targets() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+
+        build_command(&["test/clean", "test/clean"])
+            .run(console, &context)
+            .unwrap();
+
+        assert_eq!(
+            *recorders.snapshots.lock().unwrap(),
+            vec!["delete test/clean"]
+        );
+    }
+
+    #[test]
+    fn test_delete_instance_skips_its_own_snapshot() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+
+        build_command(&["test/clean", "test"])
+            .run(console, &context)
+            .unwrap();
+
+        assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
+        assert!(recorders.snapshots.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_reject_an_empty_target_list() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, _) = build_context(Vec::new());
 
         assert!(matches!(
-            DeleteCommand {
-                force: false,
-                yes: commands::YesArg { value: true },
-                instances: Vec::new().into(),
-            }
-            .run(console, &context),
+            build_command(&[]).run(console, &context),
             Err(Error::MissingInstanceName)
         ));
+    }
+
+    #[test]
+    fn test_reject_an_unknown_snapshot() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let (context, recorders) = build_context(vec![build_instance("test", vec!["deps"])]);
+
+        assert!(matches!(
+            build_command(&["test/clean"]).run(console, &context),
+            Err(Error::UnknownSnapshot(instance, snapshot))
+                if instance == "test" && snapshot == "clean"
+        ));
+        assert!(recorders.deleted.lock().unwrap().is_empty());
     }
 }

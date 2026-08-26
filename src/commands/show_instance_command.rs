@@ -57,6 +57,11 @@ impl Command for ShowInstanceCommand {
             view.add(key, &rule.to_string());
         }
 
+        for (index, snapshot) in instance.snapshots.iter().enumerate() {
+            let key = if index == 0 { "Snapshots" } else { "" };
+            view.add(key, &snapshot.name);
+        }
+
         if self.all.value {
             if let Some(pid) = instance_store.get_pid(&instance) {
                 view.add("PID", &pid.to_string());
@@ -89,7 +94,7 @@ impl Command for ShowInstanceCommand {
 mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
-    use crate::models::{Arch, DataSize, Environment, Instance, InstanceName, UserName};
+    use crate::models::{Arch, DataSize, Environment, Instance, InstanceName, Snapshot, UserName};
     use crate::platform::SystemMock;
     use std::path::PathBuf;
     use std::rc::Rc;
@@ -164,6 +169,14 @@ Forward:    127.0.0.1:4000:40/tcp
                 "127.0.0.1:4000:40/tcp".parse().unwrap(),
                 "0.0.0.0:80:8000/udp".parse().unwrap(),
             ],
+            snapshots: vec![
+                Snapshot {
+                    name: "clean".to_string(),
+                },
+                Snapshot {
+                    name: "before-upgrade".to_string(),
+                },
+            ],
             isolate: true,
             ssh_host_key: Some(
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f"
@@ -211,6 +224,8 @@ Monitor Port: 8001
 Console Port: 8002
 Forward:      127.0.0.1:4000:40/tcp
               0.0.0.0:80:8000/udp
+Snapshots:    clean
+              before-upgrade
 Disk Image:   {disk_image}
 Config:       {config}
 SSH Key:      {ssh_key}
