@@ -1,6 +1,7 @@
 use crate::commands::{self, Command};
 use crate::error::Result;
-use crate::models::InstanceImageName;
+use crate::models::{ImageName, InstanceName};
+use crate::util::Either;
 use crate::view::Console;
 use clap::Parser;
 
@@ -55,7 +56,7 @@ use clap::Parser;
 #[clap(verbatim_doc_comment)]
 pub struct ShowCommand {
     /// Name of the virtual machine image or instance
-    name: InstanceImageName,
+    name: Either<ImageName, InstanceName>,
 
     #[clap(flatten)]
     all: commands::AllInfoArg,
@@ -64,12 +65,12 @@ pub struct ShowCommand {
 impl Command for ShowCommand {
     fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         match &self.name {
-            InstanceImageName::Image(name) => commands::ShowImageCommand {
+            Either::Left(name) => commands::ShowImageCommand {
                 name: name.clone(),
                 all: self.all.value.into(),
             }
             .run(console, context),
-            InstanceImageName::Instance(instance) => commands::ShowInstanceCommand {
+            Either::Right(instance) => commands::ShowInstanceCommand {
                 instance: instance.clone().into(),
                 all: self.all.value.into(),
             }
@@ -111,7 +112,7 @@ mod tests {
         }]);
 
         ShowCommand {
-            name: InstanceImageName::from_str("test").unwrap(),
+            name: "test".parse().unwrap(),
             all: false.into(),
         }
         .run(console, &context)
@@ -127,7 +128,7 @@ mod tests {
         let context = build_context(Vec::new());
 
         let result = ShowCommand {
-            name: InstanceImageName::from_str("missing").unwrap(),
+            name: "missing".parse().unwrap(),
             all: false.into(),
         }
         .run(console, &context);

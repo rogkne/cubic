@@ -1,10 +1,12 @@
 mod async_caller;
+mod either;
 mod hex;
 mod shortcut_decoder;
 mod string;
 mod system_command;
 
 pub use async_caller::*;
+pub use either::*;
 pub use hex::*;
 pub use shortcut_decoder::*;
 pub use string::*;
