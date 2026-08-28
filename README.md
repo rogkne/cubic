@@ -52,6 +52,7 @@ Cubic fits a lot of everyday workflows:
 - Supports **amd64** and **arm64** CPU architectures
 - Supports hardware acceleration with **KVM** (Linux), **Hypervisor** (macOS), **WHPX** (Windows) and **NVMM** (BSD)
 - Snapshot and restore the disk of a VM instance
+- Creates VM instances from reusable templates
 - Daemonless design which does not require root privileges
 - Written in Rust
 

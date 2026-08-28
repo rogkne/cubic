@@ -1,9 +1,8 @@
 use crate::commands::{Context, DEFAULT_DISK_SIZE};
 use crate::error::{Error, Result};
-use crate::models::{Arch, DataSize, Instance, ResourceAllocator};
+use crate::models::{Arch, Instance, ResourceAllocator};
 use crate::qemu::QemuImg;
 use crate::view::Console;
-use std::str::FromStr;
 
 /// Load an instance and replace an unreadable config with a machine of the
 /// same defaults `cubic create` picks.
@@ -45,7 +44,7 @@ impl LoadInstanceAction {
             user: context.get_env().get_username().clone(),
             cpus,
             mem,
-            disk_capacity: DataSize::from_str(DEFAULT_DISK_SIZE).unwrap(),
+            disk_capacity: DEFAULT_DISK_SIZE,
             ssh_port: context.get_system().bind_port()?,
             ..Instance::default()
         };
@@ -64,6 +63,7 @@ mod tests {
     use crate::platform::{FileSystem, System, SystemMock};
     use std::path::Path;
     use std::rc::Rc;
+    use std::str::FromStr;
 
     const GIB: usize = 1024 * 1024 * 1024;
 
@@ -109,10 +109,7 @@ mod tests {
         let (cpus, mem) = ResourceAllocator::new(16 * GIB, 8).get_default_resources();
         assert_eq!(instance.cpus, cpus);
         assert_eq!(instance.mem, mem);
-        assert_eq!(
-            instance.disk_capacity,
-            DataSize::from_str(DEFAULT_DISK_SIZE).unwrap()
-        );
+        assert_eq!(instance.disk_capacity, DEFAULT_DISK_SIZE);
         assert_eq!(instance.user.as_str(), "cubic");
         assert!(instance.ssh_port > 0);
     }

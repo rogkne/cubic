@@ -7,7 +7,7 @@ pub struct DataSize {
 }
 
 impl DataSize {
-    pub fn new(bytes: usize) -> Self {
+    pub const fn new(bytes: usize) -> Self {
         Self { bytes }
     }
 
