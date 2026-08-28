@@ -8,7 +8,7 @@ impl UserDataFactory {
         let execute = execute
             .map(|execute| {
                 format!(
-                    "bootcmd:\n\u{20}\u{20}- \"{}\"\n",
+                    "runcmd:\n\u{20}\u{20}- \"{}\"\n",
                     execute
                         .replace('\\', "\\\\")
                         .replace('"', "\\\"")
@@ -79,7 +79,7 @@ users:
 write_files:
   - path: /etc/ssh/sshd_config.d/10-cubic.conf
     content: "AcceptEnv *\n"
-bootcmd:
+runcmd:
   - "\"sudo apt install vim\""
 "#;
         assert_eq!(
@@ -96,12 +96,12 @@ bootcmd:
             Some("a\\b\t\"c\"\nd\re"),
         );
 
-        let expected_bootcmd = r#"bootcmd:
+        let expected_runcmd = r#"runcmd:
   - "a\\b\t\"c\"\nd\re"
 "#;
         assert!(
-            actual.ends_with(expected_bootcmd),
-            "\nActual: {actual}\nExpected suffix: {expected_bootcmd}\n"
+            actual.ends_with(expected_runcmd),
+            "\nActual: {actual}\nExpected suffix: {expected_runcmd}\n"
         )
     }
 }
