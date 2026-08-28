@@ -59,6 +59,7 @@ Cubic
    howto/shell_completions
    howto/getting_started
    howto/snapshots
+   howto/templates
    howto/http_server
    howto/ssh_connect
    howto/console_login
@@ -105,6 +106,7 @@ Features
 * Supports hardware acceleration with KVM (Linux), Hypervisor (macOS), WHPX (Windows) and NVMM (BSD)
 * Boots each VM with EDK2 UEFI firmware, discovered automatically per architecture
 * Snapshots the disk of a VM instance and restores it later
+* Creates VM instances from reusable templates
 * No background privileged service and runs with standard user rights, no admin or root needed
 * Written in Rust
 

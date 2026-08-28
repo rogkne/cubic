@@ -13,6 +13,7 @@ mod snapshot_name;
 mod target;
 mod target_instance_path;
 mod target_path;
+mod template;
 mod user_name;
 
 pub use arch::*;
@@ -30,4 +31,5 @@ pub use snapshot_name::*;
 pub use target::*;
 pub use target_instance_path::*;
 pub use target_path::*;
+pub use template::*;
 pub use user_name::*;
