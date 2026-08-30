@@ -15,24 +15,24 @@ Cubic is designed with three security goals in mind:
    over any network the host is connected to.
 
 To meet these goals Cubic keeps the amount of trusted code small. It runs
-without a background service, it never asks for root rights, and it
+without a background service, it never asks for extra privileges, and it
 authenticates every connection that reaches a virtual machine.
 
-Daemonless and Rootless Design
-------------------------------
+No Privileged System Service
+----------------------------
 
-Many virtual machine managers rely on a background service that runs as root.
-Cubic does not. Each time you run a cubic command it starts a short lived
-process that launches or stops a QEMU process owned by your own user account,
-and then it exits.
+Many virtual machine managers rely on a background service that runs with
+system wide privileges. Cubic does not. Each time you run a cubic command it
+starts a short lived process that launches or stops a QEMU process owned by your
+own user account, and then it exits.
 
 Because QEMU runs as your normal user with no extra rights, a guest that breaks
-out of its virtual machine cannot gain root access on the host. Any such escape
-stays inside your own user account, where the operating system keeps it isolated
-from other users in the usual way.
+out of its virtual machine cannot gain system wide privileges on the host. Any
+such escape stays inside your own user account, where the operating system keeps
+it isolated from other users in the usual way.
 
-Verified Cloud Images
----------------------
+Verified Distribution Images
+----------------------------
 
 Cubic only uses official images that come straight from each distribution.
 Before an image is used, Cubic compares it against the checksum that the vendor
@@ -67,8 +67,9 @@ separation comes from the authentication on each connection, which the sections
 below describe.
 
 By default a guest still has outbound access so it can install packages and
-reach the internet. Starting a machine with ``--isolate`` cuts off this outbound
-access for workloads that should stay fully contained.
+reach the internet. Creating a machine with ``--isolate`` cuts off this outbound
+access for workloads that should stay fully contained. You can also turn it on
+and off later with ``cubic modify --isolate`` and ``cubic modify --no-isolate``.
 
 Port Forwarding
 ---------------
@@ -143,15 +144,8 @@ Keeping Instances Apart
 Everything that belongs to a virtual machine, including its SSH private key, its
 TLS certificates, its disk images and its cloud-init seed image, is stored under
 your own data directory, for example ``~/.local/share/cubic/machines/<name>/``
-on Linux. Reaching a running machine therefore comes down to two things: the
-file permissions on that directory, and holding the SSH key or the TLS client
+on Linux. Reaching a running machine means holding the SSH key or the TLS client
 certificate that is kept inside it.
-
-Cubic currently relies on the file permissions that the operating system applies
-by default. Restricting the private keys and certificates so that only their
-owner can read them, and the instance directories so that only their owner can
-enter them, would make this protection independent of how each user's system is
-configured.
 
 Security Issues
 ---------------
