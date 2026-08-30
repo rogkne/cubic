@@ -28,6 +28,8 @@ impl UserDataFactory {
             \u{20}\u{20}\u{20}\u{20}ssh_authorized_keys: [{pubkey}]\n\
             \u{20}\u{20}\u{20}\u{20}shell: /bin/bash\n\
             \u{20}\u{20}\u{20}\u{20}sudo: ALL=(ALL) NOPASSWD:ALL\n\
+            resize_rootfs: noblock\n\
+            ssh_genkeytypes: [ed25519]\n\
             write_files:\n\
             \u{20}\u{20}- path: /etc/ssh/sshd_config.d/10-cubic.conf\n\
             \u{20}\u{20}\u{20}\u{20}content: \"AcceptEnv *\\n\"\n\
@@ -52,6 +54,8 @@ users:
     ssh_authorized_keys: [pubkey]
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
+resize_rootfs: noblock
+ssh_genkeytypes: [ed25519]
 write_files:
   - path: /etc/ssh/sshd_config.d/10-cubic.conf
     content: "AcceptEnv *\n"
@@ -76,6 +80,8 @@ users:
     ssh_authorized_keys: [pubkey]
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
+resize_rootfs: noblock
+ssh_genkeytypes: [ed25519]
 write_files:
   - path: /etc/ssh/sshd_config.d/10-cubic.conf
     content: "AcceptEnv *\n"
