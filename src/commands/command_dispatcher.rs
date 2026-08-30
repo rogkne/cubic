@@ -46,12 +46,11 @@ const ABOUT: &str = "\
 Cubic runs Linux virtual machines on Linux, macOS and Windows with a single
 command.
 
-Every distribution comes as a prebuilt cloud image and is ready to use within
+Every distribution comes as an official image and is ready to use within
 seconds, so you skip the long installation. Cubic keeps things simple and secure
 by acting as lightweight glue over proven tools. No privileged system service is
-required and every VM runs as your normal user, so you never need admin or root
-rights. Cubic is built on top of QEMU, EDK2, official cloud images and
-cloud-init.
+required and every VM runs as your normal user. Cubic is built on top of QEMU,
+EDK2, official Linux distribution images and cloud-init.
 
 Examples:
 

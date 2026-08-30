@@ -9,12 +9,12 @@
 Cubic spins up Linux virtual machines on Linux, macOS and Windows with a single
 command.
 
-Every distribution comes as a prebuilt cloud image and is ready to use within
+Every distribution comes as an official image and is ready to use within
 seconds, so you skip the long installation. Cubic keeps things simple and secure
 by acting as lightweight glue over proven tools. No privileged system service is
-required and every VM runs as your normal user, so you never need admin or root
-rights.
-Cubic is built on top of `QEMU`, `EDK2`, official cloud images and `cloud-init`.
+required and every VM runs as your normal user.
+Cubic is built on top of `QEMU`, `EDK2`, official Linux distribution images and
+`cloud-init`.
 
 ![Cubic Demo](docs/cubic.gif)
 
@@ -24,7 +24,7 @@ One command takes you from nothing to a shell inside a fresh Linux VM. The image
 are official and verified, downloaded straight from each distribution. Every
 machine is a real VM, so you get stronger isolation than containers can offer.
 The same workflow runs on Linux, macOS and Windows across amd64 and arm64.
-No privileged system service is required and you never need admin or root rights.
+No privileged system service is required and every VM runs as your normal user.
 
 Cubic fits a lot of everyday workflows:
 
@@ -38,23 +38,35 @@ Cubic fits a lot of everyday workflows:
 
 # 🔥 Features
 
-- Simple command-line interface
-- Supports the following guest OS:
-  - **Alma Linux**
-  - **Arch Linux**
-  - **Debian**
-  - **Fedora**
-  - **Gentoo**
-  - **OpenSUSE**
-  - **Rocky Linux**
-  - **Ubuntu**
-- Supports the following host OS: **Linux**, **macOS**, **Windows**
-- Supports **amd64** and **arm64** CPU architectures
-- Supports hardware acceleration with **KVM** (Linux), **Hypervisor** (macOS), **WHPX** (Windows) and **NVMM** (BSD)
-- Snapshot and restore the disk of a VM instance
-- Creates VM instances from reusable templates
-- Daemonless design which does not require root privileges
+**Fast and simple**
+
+- Creates a VM and opens a shell in one command
+- Boots official Linux distribution images in seconds
 - Written in Rust
+
+**Runs anywhere**
+
+- Runs on **Linux**, **macOS** and **Windows** hosts
+- Ships **Alma Linux**, **Arch Linux**, **Debian**, **Fedora**, **Gentoo**, **OpenSUSE**, **Rocky Linux** and **Ubuntu**
+- Runs **amd64** and **arm64** guests
+- Accelerates every VM with **KVM** (Linux), **Hypervisor** (macOS) and **WHPX** (Windows)
+
+**Everyday work**
+
+- Forwards ports from a VM to the host
+- Copies files between host and VM and between two VMs
+- Executes single commands in a VM
+- Creates VM instances from reusable templates
+- Snapshots a VM disk and restores it later
+- Clones and renames VM instances
+- Isolates a VM from the network with one flag
+
+**Safe by default**
+
+- Runs every VM as a normal user process without a privileged system service
+- Verifies every image against the checksum of the distribution
+- Protects every VM with its own SSH key and a locked password
+- Encrypts the QEMU control channels with mutual TLS
 
 # 🚀 Quick Start
 
@@ -137,12 +149,11 @@ $ cubic --help
 Cubic runs Linux virtual machines on Linux, macOS and Windows with a single
 command.
 
-Every distribution comes as a prebuilt cloud image and is ready to use within
+Every distribution comes as an official image and is ready to use within
 seconds, so you skip the long installation. Cubic keeps things simple and secure
 by acting as lightweight glue over proven tools. No privileged system service is
-required and every VM runs as your normal user, so you never need admin or root
-rights. Cubic is built on top of QEMU, EDK2, official cloud images and
-cloud-init.
+required and every VM runs as your normal user. Cubic is built on top of QEMU,
+EDK2, official Linux distribution images and cloud-init.
 
 Examples:
 
@@ -237,7 +248,7 @@ drives to run every VM.
 | getrandom | Secure randomness for SSH key generation |
 | regex | Parse image and instance names and scrape image version listings |
 | rcgen | Generate the per-instance self-signed certificates for QEMU mTLS |
-| reqwest | Download cloud images over HTTPS |
+| reqwest | Download official Linux distribution images over HTTPS |
 | russh | Pure-Rust SSH client to connect into VMs |
 | russh-sftp | SFTP file transfer over the SSH connection |
 | rustls | TLS for the QEMU mTLS control channel |
