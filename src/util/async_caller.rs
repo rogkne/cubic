@@ -1,19 +1,29 @@
 pub struct AsyncCaller {
-    runtime: tokio::runtime::Runtime,
+    runtime: Option<tokio::runtime::Runtime>,
 }
 
 impl AsyncCaller {
     pub fn new() -> Self {
         Self {
-            runtime: tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap(),
+            runtime: Some(
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap(),
+            ),
         }
     }
 
     pub fn call<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.block_on(future)
+        self.runtime.as_ref().unwrap().block_on(future)
+    }
+}
+
+impl Drop for AsyncCaller {
+    fn drop(&mut self) {
+        if let Some(runtime) = self.runtime.take() {
+            runtime.shutdown_background();
+        }
     }
 }
 
