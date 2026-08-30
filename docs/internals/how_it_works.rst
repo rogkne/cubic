@@ -1,14 +1,14 @@
 How Cubic Works
 ===============
 
-Cubic is intentionally simple. It has no background daemon, requires no root
-privileges, and builds on four established tools: official cloud images,
-cloud-init, QEMU, and EDK2 UEFI firmware.
+Cubic is intentionally simple. It has no background service, needs no extra
+privileges, and builds on four established tools: official Linux distribution
+images, cloud-init, QEMU, and EDK2 UEFI firmware.
 
 What Happens When You Run Cubic
 --------------------------------
 
-1. **Download** — Cubic fetches the official cloud image for the chosen
+1. **Download** — Cubic fetches the official image for the chosen
    distribution directly from the vendor's mirror. The image is
    checksum-verified and cached locally under ``~/.cache/cubic/images/`` so
    subsequent instances reuse it without re-downloading.
@@ -22,11 +22,11 @@ What Happens When You Run Cubic
    subsequent boots cloud-init detects that provisioning is complete and does
    not run again.
 
-4. **Run** — QEMU launches the VM directly from the CLI. No daemon is involved
-   — Cubic is a process that starts QEMU and exits.
+4. **Run** — QEMU launches the VM directly from the CLI. No background service
+   is involved — Cubic is a process that starts QEMU and exits.
 
-Cloud Images
-------------
+Distribution Images
+-------------------
 
 Cubic always uses official, unmodified images downloaded directly from the
 vendor. Images are fetched from each distribution's own mirror (Ubuntu, Debian,
@@ -59,7 +59,6 @@ line and executes it directly. Every platform has one hardware accelerator:
 * **KVM** on Linux
 * **HVF** (Hypervisor Framework) on macOS
 * **WHPX** on Windows
-* **NVMM** on the BSDs
 
 Cubic checks with QEMU that the accelerator works on the host and falls back to
 **TCG** software emulation when it does not. Use ``cubic start --accel on`` to
@@ -67,7 +66,7 @@ insist on hardware acceleration and ``--accel off`` to run in software
 emulation.
 
 Cubic attaches the instance disk with discard enabled, so files deleted inside
-the VM release their space in the host image. Cloud images mount the root
+the VM release their space in the host image. Official images mount the root
 filesystem with ``discard``, so this needs no setup inside the VM.
 
 Each instance keeps everything it owns in one directory under
@@ -79,21 +78,22 @@ from each other and from the shared image cache.
 UEFI Firmware (EDK2)
 --------------------
 
-Cloud images boot through UEFI, so Cubic boots every VM with `EDK2
+Official images boot through UEFI, so Cubic boots every VM with `EDK2
 <https://github.com/tianocore/edk2>`_ UEFI firmware. Cubic finds the firmware
 automatically in the host's QEMU installation and picks the right build for the
 guest architecture. When the firmware lives somewhere unusual you can point Cubic
 at it with the ``CUBIC_QEMU_FW_AMD64`` and ``CUBIC_QEMU_FW_ARM64`` environment
 variables. See :ref:`qemu detection` for details.
 
-Daemonless and Rootless Security
----------------------------------
+Security Without a Privileged Service
+-------------------------------------
 
-Most VM managers require a background daemon running as root or a privileged
-helper. Cubic does not. Every ``cubic`` invocation
-is a short-lived CLI process that starts or stops a QEMU process owned by the
-current user and then exits.
+Most VM managers require a background service that runs with system wide
+privileges. Cubic does not. Every ``cubic`` invocation is a short-lived CLI
+process that starts or stops a QEMU process owned by the current user and then
+exits.
 
 Because QEMU runs in the user's context with no elevated privileges, a
-compromised guest VM cannot escalate to root on the host. The security boundary
-is enforced by the operating system's normal user isolation.
+compromised guest VM cannot gain system wide privileges on the host. The
+security boundary is enforced by the operating system's normal user
+isolation.
