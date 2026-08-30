@@ -94,21 +94,41 @@ cat >> docs/index.rst << 'EOF'
 
 Cubic spins up Linux virtual machines on Linux, macOS and Windows with a single command.
 
-Every distribution comes as a prebuilt cloud image and is ready to use within seconds, so you skip the long installation. Cubic keeps things simple and secure by acting as lightweight glue over proven tools. No privileged system service is required and every VM runs as your normal user, so you never need admin or root rights.
-Cubic is built on top of ``QEMU``, ``EDK2``, official cloud images and ``cloud-init``.
+Every distribution comes as an official image and is ready to use within seconds, so you skip the long installation. Cubic keeps things simple and secure by acting as lightweight glue over proven tools. No privileged system service is required and every VM runs as your normal user.
+Cubic is built on top of ``QEMU``, ``EDK2``, official Linux distribution images and ``cloud-init``.
 
 Features
 ---------
-* Simple command-line interface
-* Supports Alma Linux, Arch Linux, Debian, Fedora, Gentoo, OpenSUSE, Rocky Linux and Ubuntu guest images
-* Uses official, checksum-verified cloud images downloaded straight from each distribution
-* Supports Linux, macOS and Windows hosts with amd64 and arm64 architecture
-* Supports hardware acceleration with KVM (Linux), Hypervisor (macOS), WHPX (Windows) and NVMM (BSD)
-* Boots each VM with EDK2 UEFI firmware, discovered automatically per architecture
-* Snapshots the disk of a VM instance and restores it later
-* Creates VM instances from reusable templates
-* No background privileged service and runs with standard user rights, no admin or root needed
+
+**Fast and simple**
+
+* Creates a VM and opens a shell in one command
+* Boots official Linux distribution images in seconds
 * Written in Rust
+
+**Runs anywhere**
+
+* Runs on **Linux**, **macOS** and **Windows** hosts
+* Ships **Alma Linux**, **Arch Linux**, **Debian**, **Fedora**, **Gentoo**, **OpenSUSE**, **Rocky Linux** and **Ubuntu**
+* Runs **amd64** and **arm64** guests
+* Accelerates every VM with **KVM** (Linux), **Hypervisor** (macOS) and **WHPX** (Windows)
+
+**Everyday work**
+
+* Forwards ports from a VM to the host
+* Copies files between host and VM and between two VMs
+* Executes single commands in a VM
+* Creates VM instances from reusable templates
+* Snapshots a VM disk and restores it later
+* Clones and renames VM instances
+* Isolates a VM from the network with one flag
+
+**Safe by default**
+
+* Runs every VM as a normal user process without a privileged system service
+* Verifies every image against the checksum of the distribution
+* Protects every VM with its own SSH key and a locked password
+* Encrypts the QEMU control channels with mutual TLS
 
 Source Code
 ===========
