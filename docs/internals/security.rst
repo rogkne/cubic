@@ -35,7 +35,7 @@ Verified Distribution Images
 ----------------------------
 
 Cubic only uses official images that come straight from each distribution.
-Before an image is used, Cubic compares it against the checksum that the vendor
+Before an image is used, Cubic compares it against the checksum that the distro
 publishes next to it, using either SHA256 or SHA512. If the value does not
 match, Cubic rejects the download and stops with an ``InvalidChecksum`` error.
 
@@ -44,7 +44,7 @@ machine. The verified image is cached under ``~/.cache/cubic/images/`` and
 shared by every virtual machine that uses the same distribution and version, so
 it only needs to be fetched and checked once.
 
-In the future Cubic could go one step further and verify a vendor signature over
+In the future Cubic could go one step further and verify a distro signature over
 the checksum file. That would remove the need to trust the connection to the
 mirror at all.
 

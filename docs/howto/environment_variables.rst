@@ -17,7 +17,7 @@ Create the Virtual Machine
 
 .. code-block::
 
-    $ cubic create builder --image ubuntu:noble
+    $ cubic create builder --image ubuntu
 
 Start the Virtual Machine
 --------------------------
