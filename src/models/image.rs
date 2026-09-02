@@ -36,6 +36,9 @@ pub struct Image {
 }
 
 impl Image {
+    /// Tags that every distribution has
+    pub const LATEST_TAG: &'static str = "latest";
+    pub const STABLE_TAG: &'static str = "stable";
     /// Version of a rolling release
     pub const ROLLING: &'static str = "rolling";
 

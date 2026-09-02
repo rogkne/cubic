@@ -4,6 +4,15 @@ use crate::util;
 
 pub struct UbuntuImageProvider {}
 
+impl UbuntuImageProvider {
+    /// Ubuntu releases a long term version every even year in April
+    fn is_long_term_version(&self, version: &str) -> bool {
+        version.split_once('.').is_some_and(|(year, month)| {
+            month == "04" && year.parse::<u32>().is_ok_and(|year| year % 2 == 0)
+        })
+    }
+}
+
 impl ImageProvider for UbuntuImageProvider {
     fn get_distro(&self) -> &str {
         "ubuntu"
@@ -44,6 +53,15 @@ impl ImageProvider for UbuntuImageProvider {
     fn get_checksum_alg(&self) -> HashAlg {
         HashAlg::Sha256
     }
+
+    fn find_stable_version(&self, versions: &[String]) -> Option<String> {
+        versions
+            .iter()
+            .rev()
+            .find(|version| self.is_long_term_version(version))
+            .cloned()
+            .or_else(|| versions.last().cloned())
+    }
 }
 
 #[cfg(test)]
@@ -71,6 +89,24 @@ mod tests {
             "24.04"
         );
         assert_eq!(provider.get_codename("noble"), Some("noble".to_string()));
+    }
+
+    #[test]
+    fn test_find_stable_version_picks_the_newest_lts() {
+        let provider = UbuntuImageProvider {};
+
+        assert_eq!(
+            provider.find_stable_version(
+                &["24.04", "24.10", "25.04", "25.10", "26.04"]
+                    .map(String::from)
+                    .to_vec()
+            ),
+            Some("26.04".to_string())
+        );
+        assert_eq!(
+            provider.find_stable_version(&["25.04", "25.10"].map(String::from).to_vec()),
+            Some("25.10".to_string())
+        );
     }
 
     #[test]

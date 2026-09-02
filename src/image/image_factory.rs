@@ -99,6 +99,38 @@ impl<'a> ImageFactory<'a> {
         }
     }
 
+    /// Derive the stable and latest tag of every distro and arch. Tags follow
+    /// from the version list, so they are never stored and never go stale.
+    fn tag_images(mut images: Vec<Image>) -> Vec<Image> {
+        images.sort();
+
+        for image_provider in IMAGE_PROVIDERS {
+            for arch in [Arch::AMD64, Arch::ARM64] {
+                let is_in_group = |image: &Image| {
+                    image.distro == image_provider.get_distro() && image.arch == arch
+                };
+                let versions = images
+                    .iter()
+                    .filter(|image| is_in_group(image))
+                    .map(|image| image.get_version().to_string())
+                    .collect::<Vec<_>>();
+                let latest = versions.last().cloned();
+                let stable = image_provider.find_stable_version(&versions);
+
+                for image in images.iter_mut().filter(|image| is_in_group(image)) {
+                    if stable.as_deref() == Some(image.get_version()) {
+                        image.tags.push(Image::STABLE_TAG.into());
+                    }
+                    if latest.as_deref() == Some(image.get_version()) {
+                        image.tags.push(Image::LATEST_TAG.into());
+                    }
+                }
+            }
+        }
+
+        images
+    }
+
     fn get_images_from_provider(
         console: &mut Console<'_>,
         web: &mut WebClient,
@@ -190,6 +222,8 @@ impl<'a> ImageFactory<'a> {
             }
         };
 
+        let images = Self::tag_images(images);
+
         Ok(match &filter {
             Some(name) => Self::find_matching_image(&images, name)
                 .into_iter()
@@ -231,6 +265,53 @@ mod tests {
             hash_alg: HashAlg::Sha256,
             size: None,
         }
+    }
+
+    #[test]
+    fn test_tag_images_tags_the_newest_and_the_newest_lts() {
+        let images = vec![
+            build_image("ubuntu", "24.04", Some("noble"), Arch::AMD64),
+            build_image("ubuntu", "25.10", Some("questing"), Arch::AMD64),
+            build_image("ubuntu", "25.04", Some("plucky"), Arch::AMD64),
+        ];
+
+        let images = ImageFactory::tag_images(images);
+
+        assert_eq!(images[0].get_tags(), "noble, stable");
+        assert_eq!(images[1].get_tags(), "plucky");
+        assert_eq!(images[2].get_tags(), "questing, latest");
+    }
+
+    #[test]
+    fn test_tag_images_tags_each_arch_on_its_own() {
+        let images = vec![
+            build_image("ubuntu", "24.04", Some("noble"), Arch::AMD64),
+            build_image("ubuntu", "26.04", Some("resolute"), Arch::AMD64),
+            build_image("ubuntu", "24.04", Some("noble"), Arch::ARM64),
+        ];
+
+        let images = ImageFactory::tag_images(images);
+        let find_tags = |version: &str, arch: Arch| {
+            images
+                .iter()
+                .find(|image| image.get_version() == version && image.arch == arch)
+                .map(|image| image.get_tags())
+                .unwrap()
+        };
+
+        assert_eq!(find_tags("24.04", Arch::AMD64), "noble");
+        assert_eq!(find_tags("26.04", Arch::AMD64), "resolute, stable, latest");
+        assert_eq!(find_tags("24.04", Arch::ARM64), "noble, stable, latest");
+    }
+
+    #[test]
+    fn test_tag_images_tags_a_rolling_release() {
+        let images = vec![build_image("archlinux", Image::ROLLING, None, Arch::AMD64)];
+
+        let images = ImageFactory::tag_images(images);
+
+        assert_eq!(images[0].get_image_name(), "archlinux:rolling");
+        assert_eq!(images[0].get_tags(), "stable, latest");
     }
 
     #[test]
