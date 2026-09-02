@@ -1,11 +1,12 @@
-use crate::models::Arch;
+use crate::models::{Arch, Image};
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
-static IMAGE_NAME_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("^(\\w+):([\\w\\.]+)(:(amd64|arm64))?$").unwrap());
+static IMAGE_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new("^(?<distro>\\w+)(:(?<name>[\\w\\.]+))?(:(?<arch>amd64|arm64))?$").unwrap()
+});
 
 #[derive(Clone, Debug)]
 pub struct ImageName {
@@ -32,22 +33,24 @@ impl FromStr for ImageName {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        if IMAGE_NAME_REGEX.is_match(name) {
-            let mut tokens = name.split(':');
-            let distro = tokens.next().unwrap().to_string();
-            let name = tokens.next().unwrap().to_string();
-            let arch = tokens
-                .next()
-                .map(|x| Arch::from_str(x).unwrap())
-                .unwrap_or(Arch::get_host());
-
-            Ok(Self { distro, name, arch })
-        } else {
-            Err(
-                "Image name must have the format: distro:name[:arch] (e.g. debian:bookworm, debian:buster:amd64)"
-                    .to_string(),
-            )
-        }
+        IMAGE_NAME_REGEX
+            .captures(name)
+            .map(|captures| Self {
+                distro: captures["distro"].to_string(),
+                // A bare distro is a shortcut for the stable release
+                name: captures
+                    .name("name")
+                    .map(|name| name.as_str().to_string())
+                    .unwrap_or(Image::STABLE_TAG.to_string()),
+                arch: captures
+                    .name("arch")
+                    .and_then(|arch| Arch::from_str(arch.as_str()).ok())
+                    .unwrap_or(Arch::get_host()),
+            })
+            .ok_or_else(|| {
+                "Image name must have the format: distro[:name][:arch] (e.g. debian, debian:bookworm, debian:stable:amd64)"
+                    .to_string()
+            })
     }
 }
 
@@ -62,31 +65,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_debian_bookworm() {
+    fn test_parse_distro_name_and_arch() {
         let image = ImageName::from_str("debian:bookworm").unwrap();
         assert_eq!(image.get_distro(), "debian");
         assert_eq!(image.get_name(), "bookworm");
-    }
+        assert_eq!(image.get_arch(), Arch::get_host());
 
-    #[test]
-    fn test_debian_buster_amd64() {
-        let image = ImageName::from_str("debian:buster:amd64").unwrap();
-        assert_eq!(image.get_distro(), "debian");
-        assert_eq!(image.get_name(), "buster");
-        assert_eq!(image.get_arch(), Arch::AMD64);
-    }
-
-    #[test]
-    fn test_debian_bookworm_arm64() {
         let image = ImageName::from_str("debian:bookworm:arm64").unwrap();
-        assert_eq!(image.get_distro(), "debian");
         assert_eq!(image.get_name(), "bookworm");
         assert_eq!(image.get_arch(), Arch::ARM64);
     }
 
     #[test]
-    fn test_reject_name_without_distro() {
-        assert!(ImageName::from_str("debian").is_err());
+    fn test_bare_distro_is_stable() {
+        let image = ImageName::from_str("debian").unwrap();
+        assert_eq!(image.get_distro(), "debian");
+        assert_eq!(image.get_name(), "stable");
+        assert_eq!(image.get_arch(), Arch::get_host());
     }
 
     #[test]

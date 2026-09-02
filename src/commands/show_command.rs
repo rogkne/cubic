@@ -37,10 +37,12 @@ use clap::Parser;
 ///   SSH:          ssh -i .../trixie/ssh_client_key -p 54315 cubic@localhost
 ///
 ///   Show information of a VM image
-///   $ cubic show ubuntu:noble
-///   Name:         ubuntu:{24.04, noble}
+///   A plain name is an instance, so an image needs a name or a tag
+///   $ cubic show ubuntu:latest
+///   Name:         ubuntu:26.04
+///   Tags:         resolute, stable, latest
 ///   Architecture: amd64
-///   Size:         512.0 MiB
+///   Size:         407.8 MiB
 ///   Cached:       yes
 ///
 ///   Show all image information, adding checksum, file path and URLs
@@ -56,7 +58,10 @@ use clap::Parser;
 #[clap(verbatim_doc_comment)]
 pub struct ShowCommand {
     /// Name of the virtual machine image or instance
-    name: Either<ImageName, InstanceName>,
+    ///
+    /// A plain name is an instance. An image needs a name or a tag,
+    /// for example ubuntu:latest.
+    name: Either<InstanceName, ImageName>,
 
     #[clap(flatten)]
     all: commands::AllInfoArg,
@@ -65,13 +70,13 @@ pub struct ShowCommand {
 impl Command for ShowCommand {
     fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         match &self.name {
-            Either::Left(name) => commands::ShowImageCommand {
-                name: name.clone(),
+            Either::Left(instance) => commands::ShowInstanceCommand {
+                instance: instance.clone().into(),
                 all: self.all.value.into(),
             }
             .run(console, context),
-            Either::Right(instance) => commands::ShowInstanceCommand {
-                instance: instance.clone().into(),
+            Either::Right(name) => commands::ShowImageCommand {
+                name: name.clone(),
                 all: self.all.value.into(),
             }
             .run(console, context),
