@@ -99,7 +99,7 @@ mod tests {
             r#"timestamp = 5000
 
 [[images]]
-vendor = "testvendor"
+distro = "testdistro"
 names = ["testversion", "testcodename"]
 arch = "AMD64"
 image_url = "imageurl"
@@ -107,7 +107,7 @@ checksum_url = "checksumurl"
 hash_alg = "Sha256"
 
 [[images]]
-vendor = "testvendor2"
+distro = "testdistro2"
 names = ["testversion2", "testcodename2"]
 arch = "ARM64"
 image_url = "imageurl2"
@@ -120,13 +120,13 @@ hash_alg = "Sha512"
         let cache = ImageCache::deserialize(reader).unwrap();
         assert_eq!(cache.timestamp, 5000);
         assert_eq!(cache.images.len(), 2);
-        assert_eq!(cache.images[0].vendor, "testvendor");
+        assert_eq!(cache.images[0].distro, "testdistro");
         assert_eq!(cache.images[0].names, ["testversion", "testcodename"]);
         assert_eq!(cache.images[0].arch, Arch::AMD64);
         assert_eq!(cache.images[0].image_url, "imageurl");
         assert_eq!(cache.images[0].checksum_url, "checksumurl");
         assert_eq!(cache.images[0].hash_alg, HashAlg::Sha256);
-        assert_eq!(cache.images[1].vendor, "testvendor2");
+        assert_eq!(cache.images[1].distro, "testdistro2");
         assert_eq!(cache.images[1].names, ["testversion2", "testcodename2"]);
         assert_eq!(cache.images[1].arch, Arch::ARM64);
         assert_eq!(cache.images[1].image_url, "imageurl2");
@@ -140,7 +140,7 @@ hash_alg = "Sha512"
 
         ImageCache {
             images: vec![Image {
-                vendor: "testvendor".to_string(),
+                distro: "testdistro".to_string(),
                 names: vec!["testversion".to_string(), "testcodename".to_string()],
                 arch: Arch::AMD64,
                 image_url: "imageurl".to_string(),
@@ -158,7 +158,7 @@ hash_alg = "Sha512"
             r#"timestamp = 1000
 
 [[images]]
-vendor = "testvendor"
+distro = "testdistro"
 names = ["testversion", "testcodename"]
 arch = "AMD64"
 image_url = "imageurl"
@@ -172,7 +172,7 @@ hash_alg = "Sha256"
     fn test_write_to_file_then_read_from_file_round_trips() {
         let system = crate::platform::SystemMock::new();
         let cache = ImageCache::new(vec![Image {
-            vendor: "testvendor".to_string(),
+            distro: "testdistro".to_string(),
             names: vec!["testversion".to_string()],
             arch: Arch::AMD64,
             image_url: "imageurl".to_string(),

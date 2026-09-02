@@ -4,7 +4,7 @@ use crate::models::{Arch, HashAlg};
 pub struct GentooImageProvider {}
 
 impl ImageProvider for GentooImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "gentoo"
     }
 
@@ -45,7 +45,7 @@ mod tests {
     use regex::Regex;
 
     #[test]
-    fn test_get_image_dir_path_uses_vendor_arch() {
+    fn test_get_image_dir_path_uses_distro_arch() {
         assert_eq!(
             GentooImageProvider {}.get_image_dir_path("latest", Arch::AMD64),
             "amd64/autobuilds/current-di-amd64-cloudinit/"

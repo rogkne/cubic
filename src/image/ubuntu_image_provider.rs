@@ -13,7 +13,7 @@ impl UbuntuImageProvider {
 }
 
 impl ImageProvider for UbuntuImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "ubuntu"
     }
 

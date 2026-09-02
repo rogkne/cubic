@@ -4,7 +4,7 @@ use crate::models::{Arch, HashAlg};
 pub struct ArchLinuxImageProvider {}
 
 impl ImageProvider for ArchLinuxImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "archlinux"
     }
 

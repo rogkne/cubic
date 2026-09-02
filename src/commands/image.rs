@@ -29,7 +29,7 @@ pub fn fetch_image_info(
 ) -> Result<Image> {
     console.play(Arc::new(Mutex::new(Spinner::new(format!(
         "Looking up image {}:{}",
-        image.get_vendor(),
+        image.get_distro(),
         image.get_name()
     )))));
     let image = ImageFactory::new(system, env).find_image(console, image);
@@ -72,7 +72,7 @@ mod tests {
             String::new(),
         );
         let image = Image {
-            vendor: "debian".to_string(),
+            distro: "debian".to_string(),
             names: vec!["12".to_string(), "bookworm".to_string()],
             arch: Arch::AMD64,
             image_url: String::new(),

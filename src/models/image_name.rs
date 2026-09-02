@@ -9,14 +9,14 @@ static IMAGE_NAME_REGEX: LazyLock<Regex> =
 
 #[derive(Clone, Debug)]
 pub struct ImageName {
-    vendor: String,
+    distro: String,
     name: String,
     arch: Arch,
 }
 
 impl ImageName {
-    pub fn get_vendor(&self) -> &str {
-        &self.vendor
+    pub fn get_distro(&self) -> &str {
+        &self.distro
     }
 
     pub fn get_name(&self) -> &str {
@@ -34,17 +34,17 @@ impl FromStr for ImageName {
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         if IMAGE_NAME_REGEX.is_match(name) {
             let mut tokens = name.split(':');
-            let vendor = tokens.next().unwrap().to_string();
+            let distro = tokens.next().unwrap().to_string();
             let name = tokens.next().unwrap().to_string();
             let arch = tokens
                 .next()
                 .map(|x| Arch::from_str(x).unwrap())
                 .unwrap_or(Arch::get_host());
 
-            Ok(Self { vendor, name, arch })
+            Ok(Self { distro, name, arch })
         } else {
             Err(
-                "Image name must have the format: vendor:name[:arch] (e.g. debian:bookworm, debian:buster:amd64)"
+                "Image name must have the format: distro:name[:arch] (e.g. debian:bookworm, debian:buster:amd64)"
                     .to_string(),
             )
         }
@@ -53,7 +53,7 @@ impl FromStr for ImageName {
 
 impl fmt::Display for ImageName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}:{}:{}", self.vendor, self.name, self.arch)
+        write!(f, "{}:{}:{}", self.distro, self.name, self.arch)
     }
 }
 
@@ -64,14 +64,14 @@ mod tests {
     #[test]
     fn test_debian_bookworm() {
         let image = ImageName::from_str("debian:bookworm").unwrap();
-        assert_eq!(image.get_vendor(), "debian");
+        assert_eq!(image.get_distro(), "debian");
         assert_eq!(image.get_name(), "bookworm");
     }
 
     #[test]
     fn test_debian_buster_amd64() {
         let image = ImageName::from_str("debian:buster:amd64").unwrap();
-        assert_eq!(image.get_vendor(), "debian");
+        assert_eq!(image.get_distro(), "debian");
         assert_eq!(image.get_name(), "buster");
         assert_eq!(image.get_arch(), Arch::AMD64);
     }
@@ -79,13 +79,13 @@ mod tests {
     #[test]
     fn test_debian_bookworm_arm64() {
         let image = ImageName::from_str("debian:bookworm:arm64").unwrap();
-        assert_eq!(image.get_vendor(), "debian");
+        assert_eq!(image.get_distro(), "debian");
         assert_eq!(image.get_name(), "bookworm");
         assert_eq!(image.get_arch(), Arch::ARM64);
     }
 
     #[test]
-    fn test_reject_name_without_vendor() {
+    fn test_reject_name_without_distro() {
         assert!(ImageName::from_str("debian").is_err());
     }
 

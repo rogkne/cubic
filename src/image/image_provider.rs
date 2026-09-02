@@ -1,7 +1,7 @@
 use crate::models::{Arch, HashAlg};
 
 pub trait ImageProvider {
-    fn get_vendor(&self) -> &str;
+    fn get_distro(&self) -> &str;
 
     fn get_base_url(&self) -> &str;
     fn find_image_names(&self, content: &str) -> Vec<String>;

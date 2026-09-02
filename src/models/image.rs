@@ -21,7 +21,7 @@ impl fmt::Display for HashAlg {
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Image {
-    pub vendor: String,
+    pub distro: String,
     pub names: Vec<String>,
     pub arch: Arch,
     pub image_url: String,
@@ -46,7 +46,7 @@ impl Image {
     pub fn get_image_names(&self) -> String {
         format!(
             "{}:{}",
-            self.vendor,
+            self.distro,
             if self.names.len() > 1 {
                 format!("{{{}}}", self.names.join(", "))
             } else {
@@ -56,17 +56,17 @@ impl Image {
     }
 
     pub fn to_name(&self) -> String {
-        format!("{}:{}:{}", self.vendor, self.get_version(), self.arch)
+        format!("{}:{}:{}", self.distro, self.get_version(), self.arch)
     }
 
     pub fn to_file_name(&self) -> String {
-        format!("{}_{}_{}", self.vendor, self.get_name(), self.arch)
+        format!("{}_{}_{}", self.distro, self.get_name(), self.arch)
     }
 }
 
 impl Ord for Image {
     fn cmp(&self, other: &Self) -> Ordering {
-        let mut result = self.vendor.cmp(&other.vendor);
+        let mut result = self.distro.cmp(&other.distro);
 
         if result == Ordering::Equal {
             let a = &self.names[0];
@@ -95,9 +95,9 @@ impl PartialOrd for Image {
 mod tests {
     use super::*;
 
-    fn build_image(vendor: &str, names: &[&str]) -> Image {
+    fn build_image(distro: &str, names: &[&str]) -> Image {
         Image {
-            vendor: vendor.to_string(),
+            distro: distro.to_string(),
             names: names.iter().map(|name| name.to_string()).collect(),
             arch: Arch::AMD64,
             image_url: String::new(),
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ord_compares_vendor_first() {
+    fn test_ord_compares_distro_first() {
         assert!(build_image("alma", &["9"]) < build_image("debian", &["1"]));
     }
 }
