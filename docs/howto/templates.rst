@@ -17,7 +17,7 @@ falls back to the Cubic default when it is left out:
 
     version = 1              # mandatory
 
-    image = "debian:trixie"  # optional
+    image = "debian"         # optional
     user = "john"            # optional
     cpus = 4                 # optional
     memory = "4G"            # optional
@@ -67,7 +67,7 @@ number of CPUs:
 
 .. code-block::
 
-    $ cubic create my-instance --template ./my-template.toml --image ubuntu:noble --cpus 8
+    $ cubic create my-instance --template ./my-template.toml --image ubuntu --cpus 8
 
 A template that sets ``isolate = true`` keeps the machine off the network. Use
 ``--no-isolate`` to give a single machine network access anyway:

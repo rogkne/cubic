@@ -9,7 +9,7 @@ What Happens When You Run Cubic
 --------------------------------
 
 1. **Download** — Cubic fetches the official image for the chosen
-   distribution directly from the vendor's mirror. The image is
+   distribution directly from the distro's mirror. The image is
    checksum-verified and cached locally under ``~/.cache/cubic/images/`` so
    subsequent instances reuse it without re-downloading.
 
@@ -29,7 +29,7 @@ Distribution Images
 -------------------
 
 Cubic always uses official, unmodified images downloaded directly from the
-vendor. Images are fetched from each distribution's own mirror (Ubuntu, Debian,
+distro. Images are fetched from each distribution's own mirror (Ubuntu, Debian,
 Fedora, Arch Linux, and others) and checksum-verified before use. The cached
 image under ``~/.cache/cubic/images/`` is shared across instances of the same
 distribution and version so it is only downloaded once.
