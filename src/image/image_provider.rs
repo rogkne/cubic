@@ -21,4 +21,10 @@ pub trait ImageProvider {
     fn get_codename(&self, _name: &str) -> Option<String> {
         None
     }
+
+    /// Newest long term release, picked from versions sorted oldest first.
+    /// Distributions without long term releases keep the newest version.
+    fn find_stable_version(&self, versions: &[String]) -> Option<String> {
+        versions.last().cloned()
+    }
 }
