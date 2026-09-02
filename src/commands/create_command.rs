@@ -29,25 +29,29 @@ pub const DEFAULT_DISK_SIZE: DataSize = DataSize::new(100 * 1024_usize.pow(3));
 ///   $ cubic create example1 --cpus 8 --memory 10G --disk 200G -i debian:trixie
 ///
 ///   Create a VM instance and forward the instance's HTTP port to the host port 8000:
-///   $ cubic create example2 --port 8000:80 -i ubuntu:noble
+///   $ cubic create example2 --port 8000:80 -i ubuntu
 ///
 ///   Create a VM instance and forward the instance's DNS port to the host port 5353:
-///   $ cubic create example3 --port 5353:53/udp -i ubuntu:noble
+///   $ cubic create example3 --port 5353:53/udp -i ubuntu
 ///
 ///   Create a VM instance with multiple port forwarding rules:
-///   $ cubic create example4 -p 8000:80/tcp -p 5353:53/udp -i ubuntu:noble
+///   $ cubic create example4 -p 8000:80/tcp -p 5353:53/udp -i ubuntu:latest
 ///
 ///   Create a VM instance and install Vim:
-///   $ cubic create example5 -e "sudo apt install -y vim" -i ubuntu:noble
+///   $ cubic create example5 -e "sudo apt install -y vim" -i ubuntu
 ///
 ///   Create a VM instance without network access:
-///   $ cubic create example6 --isolate ubuntu:noble
+///   $ cubic create example6 --isolate ubuntu
 ///
 ///   Create a VM instance from a template (command line arguments override the template):
 ///   $ cubic create example7 --template ./my-template.toml
 ///
 ///   Create a VM instance with network access from a template that isolates it:
 ///   $ cubic create example8 --template ./my-template.toml --no-isolate
+///
+///   Every distribution has the tags latest and stable. The tag latest is the
+///   newest release and the tag stable is the newest long term release. A plain
+///   name is a shortcut for stable, so --image ubuntu gives you the last LTS.
 ///
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
@@ -57,7 +61,7 @@ pub struct CreateCommand {
     /// Template file with default values (e.g. --template ./my-template.toml)
     #[clap(short, long)]
     template: Option<String>,
-    /// VM image name (e.g. 'debian:trixie')
+    /// VM image name (e.g. 'debian:trixie', 'debian:latest' or 'debian')
     #[clap(short, long)]
     image: Option<ImageName>,
     /// Username (default: 'cubic')

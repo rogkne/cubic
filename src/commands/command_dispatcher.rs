@@ -55,12 +55,12 @@ EDK2, official Linux distribution images and cloud-init.
 Examples:
 
   Create a new VM instance with:
-  $ cubic create example --image ubuntu:noble
+  $ cubic create example --image ubuntu
   Open a shell in the VM instance:
   $ cubic ssh example
 
   Alternatively, use `run` to execute the above commands in a single command:
-  $ cubic run example --image ubuntu:noble
+  $ cubic run example --image ubuntu
 
   Show all supported VM images:
   $ cubic images

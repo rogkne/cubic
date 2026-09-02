@@ -14,19 +14,23 @@ use clap::{self, Parser};
 ///   $ cubic run example1 --cpus 8 --memory 10G --disk 200G -i debian:trixie
 ///
 ///   Run a VM instance and forward the instance's HTTP port to the host port 8000:
-///   $ cubic run example2 --port 8000:80 -i ubuntu:noble
+///   $ cubic run example2 --port 8000:80 -i ubuntu
 ///
 ///   Run a VM instance and forward the instance's DNS port to the host port 5353:
-///   $ cubic run example3 --port 5353:53/udp -i ubuntu:noble
+///   $ cubic run example3 --port 5353:53/udp -i ubuntu
 ///
 ///   Run a VM instance with multiple port forwarding rules:
-///   $ cubic run example4 -p 8000:80/tcp -p 5353:53/udp -i ubuntu:noble
+///   $ cubic run example4 -p 8000:80/tcp -p 5353:53/udp -i ubuntu:latest
 ///
 ///   Run a VM instance and install Vim:
-///   $ cubic run example5 -e "sudo apt install -y vim" -i ubuntu:noble
+///   $ cubic run example5 -e "sudo apt install -y vim" -i ubuntu
 ///
 ///   Run a VM instance without network access:
-///   $ cubic run example6 --isolate ubuntu:noble
+///   $ cubic run example6 --isolate ubuntu
+///
+///   Every distribution has the tags latest and stable. The tag latest is the
+///   newest release and the tag stable is the newest long term release. A plain
+///   name is a shortcut for stable, so --image ubuntu gives you the last LTS.
 ///
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
