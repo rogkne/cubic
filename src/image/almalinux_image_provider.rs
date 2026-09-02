@@ -5,7 +5,7 @@ use crate::util;
 pub struct AlmaLinuxImageProvider {}
 
 impl ImageProvider for AlmaLinuxImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "almalinux"
     }
 

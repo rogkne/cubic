@@ -13,7 +13,7 @@ impl DebianImageProvider {
 }
 
 impl ImageProvider for DebianImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "debian"
     }
 

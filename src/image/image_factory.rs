@@ -88,7 +88,7 @@ impl<'a> ImageFactory<'a> {
                         .unwrap_or(true)
                     {
                         Some(Image {
-                            vendor: image_provider.get_vendor().to_string(),
+                            distro: image_provider.get_distro().to_string(),
                             names,
                             arch,
                             image_url,
@@ -146,7 +146,7 @@ impl<'a> ImageFactory<'a> {
     ) -> Vec<Image> {
         let mut images = IMAGE_PROVIDERS
             .iter()
-            .filter(|p| filter.is_none() || filter.as_ref().unwrap().get_vendor() == p.get_vendor())
+            .filter(|p| filter.is_none() || filter.as_ref().unwrap().get_distro() == p.get_distro())
             .flat_map(|provider| {
                 Self::get_images_from_provider(console, web, *provider, filter.clone())
             })
@@ -159,7 +159,7 @@ impl<'a> ImageFactory<'a> {
         images
             .iter()
             .find(|image| {
-                image.vendor == filter.get_vendor()
+                image.distro == filter.get_distro()
                     && image.arch == filter.get_arch()
                     && image.names.contains(&filter.get_name().to_string())
             })
@@ -236,9 +236,9 @@ mod tests {
     use crate::models::HashAlg;
     use std::str::FromStr;
 
-    fn build_image(vendor: &str, names: &[&str], arch: Arch) -> Image {
+    fn build_image(distro: &str, names: &[&str], arch: Arch) -> Image {
         Image {
-            vendor: vendor.to_string(),
+            distro: distro.to_string(),
             names: names.iter().map(|n| n.to_string()).collect(),
             arch,
             image_url: "image_url".to_string(),
@@ -249,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_matching_image_matches_vendor_arch_and_name() {
+    fn test_find_matching_image_matches_distro_arch_and_name() {
         let images = vec![
             build_image("almalinux", &["9"], Arch::AMD64),
             build_image("debian", &["12", "bookworm"], Arch::AMD64),
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_matching_image_returns_none_on_vendor_mismatch() {
+    fn test_find_matching_image_returns_none_on_distro_mismatch() {
         let images = vec![build_image("debian", &["12", "bookworm"], Arch::AMD64)];
         let filter = ImageName::from_str("ubuntu:bookworm:amd64").unwrap();
 

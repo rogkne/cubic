@@ -5,7 +5,7 @@ use crate::util;
 pub struct OpenSuseImageProvider {}
 
 impl ImageProvider for OpenSuseImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "opensuse"
     }
 

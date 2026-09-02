@@ -32,7 +32,7 @@ mod tests {
 
     fn build_image(arch: Arch) -> Image {
         Image {
-            vendor: "debian".to_string(),
+            distro: "debian".to_string(),
             names: vec!["12".to_string(), "bookworm".to_string()],
             arch,
             image_url: String::new(),

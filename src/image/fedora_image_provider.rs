@@ -5,7 +5,7 @@ use crate::util;
 pub struct FedoraImageProvider {}
 
 impl ImageProvider for FedoraImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "fedora"
     }
 

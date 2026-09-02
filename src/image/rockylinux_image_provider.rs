@@ -5,7 +5,7 @@ use crate::util;
 pub struct RockyLinuxImageProvider {}
 
 impl ImageProvider for RockyLinuxImageProvider {
-    fn get_vendor(&self) -> &str {
+    fn get_distro(&self) -> &str {
         "rockylinux"
     }
 
