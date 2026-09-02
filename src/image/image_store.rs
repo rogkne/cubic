@@ -33,7 +33,9 @@ mod tests {
     fn build_image(arch: Arch) -> Image {
         Image {
             distro: "debian".to_string(),
-            names: vec!["12".to_string(), "bookworm".to_string()],
+            version: "12".to_string(),
+            codename: Some("bookworm".to_string()),
+            tags: Vec::new(),
             arch,
             image_url: String::new(),
             checksum_url: String::new(),

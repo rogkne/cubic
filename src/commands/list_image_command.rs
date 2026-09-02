@@ -10,24 +10,15 @@ use clap::Parser;
 /// Examples:
 ///
 ///   $ cubic images
-///   Name                       Arch         Size   Cached
-///   archlinux:latest           amd64   518.7 MiB       no
-///   debian:{12, bookworm}      amd64   424.2 MiB       no
-///   debian:{11, bullseye}      amd64   343.8 MiB       no
-///   debian:{10, buster}        amd64   301.7 MiB       no
-///   debian:{13, trixie}        amd64   412.0 MiB      yes
-///   fedora:41                  amd64   468.9 MiB       no
-///   fedora:42                  amd64   507.6 MiB       no
-///   fedora:43                  amd64   556.3 MiB       no
-///   opensuse:15.5              amd64   643.1 MiB       no
+///   Name                Arch         Size   Cached
+///   archlinux:rolling   amd64   530.8 MiB       no
+///   debian:12           amd64   428.7 MiB       no
+///   debian:13           amd64   413.6 MiB      yes
+///   fedora:43           amd64   556.3 MiB       no
+///   fedora:44           amd64   556.7 MiB       no
 ///   [...]
-///   opensuse:15.6              amd64   682.7 MiB       no
-///   [...]
-///   rockylinux:10              amd64   548.8 MiB       no
-///   rockylinux:8               amd64     1.9 GiB       no
-///   rockylinux:9               amd64   618.8 MiB       no
-///   [...]
-///   ubuntu:{24.04, noble}      amd64   250.4 MiB      yes
+///   ubuntu:25.10        amd64   394.2 MiB       no
+///   ubuntu:26.04        amd64   407.8 MiB      yes
 ///   [...]
 ///
 ///
@@ -60,7 +51,7 @@ impl Command for ListImageCommand {
                 .unwrap_or_default();
 
             view.add_row()
-                .add(&image.get_image_names(), Alignment::Left)
+                .add(&image.get_image_name(), Alignment::Left)
                 .add(&image.arch.to_string(), Alignment::Left)
                 .add(&size, Alignment::Right)
                 .add(

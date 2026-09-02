@@ -4,14 +4,6 @@ use crate::util;
 
 pub struct DebianImageProvider {}
 
-impl DebianImageProvider {
-    fn get_version_from_content(&self, content: &str) -> Option<String> {
-        util::find_and_extract(r"debian-([^-]+)-generic-[^.]+.qcow2", content)
-            .into_iter()
-            .next()
-    }
-}
-
 impl ImageProvider for DebianImageProvider {
     fn get_distro(&self) -> &str {
         "debian"
@@ -29,13 +21,15 @@ impl ImageProvider for DebianImageProvider {
         format!("{name}/latest/")
     }
 
-    fn get_image_names(&self, image_file: &str, name: &str) -> Vec<String> {
-        let mut names = Vec::new();
-        if let Some(version) = self.get_version_from_content(image_file) {
-            names.push(version);
-        }
-        names.push(name.to_string());
-        names
+    fn get_version(&self, image_file: &str, name: &str) -> String {
+        util::find_and_extract(r"debian-([^-]+)-generic-[^.]+.qcow2", image_file)
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| name.to_string())
+    }
+
+    fn get_codename(&self, name: &str) -> Option<String> {
+        Some(name.to_string())
     }
 
     fn get_image_file_pattern(&self, _name: &str, arch: Arch) -> String {
@@ -70,10 +64,16 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_names_extracts_version() {
+    fn test_get_version_and_codename() {
+        let provider = DebianImageProvider {};
+
         assert_eq!(
-            DebianImageProvider {}.get_image_names("debian-12-generic-amd64.qcow2", "bookworm"),
-            ["12", "bookworm"]
+            provider.get_version("debian-12-generic-amd64.qcow2", "bookworm"),
+            "12"
+        );
+        assert_eq!(
+            provider.get_codename("bookworm"),
+            Some("bookworm".to_string())
         );
     }
 

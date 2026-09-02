@@ -20,9 +20,14 @@ impl fmt::Display for HashAlg {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Image {
     pub distro: String,
-    pub names: Vec<String>,
+    pub version: String,
+    pub codename: Option<String>,
+    /// Derived when the image list is read, never cached
+    #[serde(skip)]
+    pub tags: Vec<String>,
     pub arch: Arch,
     pub image_url: String,
     pub checksum_url: String,
@@ -31,32 +36,41 @@ pub struct Image {
 }
 
 impl Image {
+    /// Version of a rolling release
+    pub const ROLLING: &'static str = "rolling";
+
     pub fn get_version(&self) -> &str {
-        &self.names[0]
+        &self.version
     }
 
+    /// Codename of a release, or its version when it has none
     pub fn get_name(&self) -> &str {
-        if self.names.len() > 1 {
-            &self.names[1]
-        } else {
-            &self.names[0]
-        }
+        self.codename.as_deref().unwrap_or(&self.version)
     }
 
-    pub fn get_image_names(&self) -> String {
-        format!(
-            "{}:{}",
-            self.distro,
-            if self.names.len() > 1 {
-                format!("{{{}}}", self.names.join(", "))
-            } else {
-                self.names[0].clone()
-            }
-        )
+    pub fn has_name(&self, name: &str) -> bool {
+        self.version == name
+            || self.codename.as_deref() == Some(name)
+            || self.tags.iter().any(|tag| tag == name)
+    }
+
+    /// Image name for display, such as debian:12 or archlinux:rolling
+    pub fn get_image_name(&self) -> String {
+        format!("{}:{}", self.distro, self.version)
+    }
+
+    /// Other names of this image, ordered codename, stable, latest
+    pub fn get_tags(&self) -> String {
+        self.codename
+            .iter()
+            .chain(self.tags.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     pub fn to_name(&self) -> String {
-        format!("{}:{}:{}", self.distro, self.get_version(), self.arch)
+        format!("{}:{}", self.get_image_name(), self.arch)
     }
 
     pub fn to_file_name(&self) -> String {
@@ -69,8 +83,8 @@ impl Ord for Image {
         let mut result = self.distro.cmp(&other.distro);
 
         if result == Ordering::Equal {
-            let a = &self.names[0];
-            let b = &other.names[0];
+            let a = self.get_version();
+            let b = other.get_version();
 
             if let Ok(a) = a.parse::<u32>()
                 && let Ok(b) = b.parse::<u32>()
@@ -95,10 +109,12 @@ impl PartialOrd for Image {
 mod tests {
     use super::*;
 
-    fn build_image(distro: &str, names: &[&str]) -> Image {
+    fn build_image(distro: &str, version: &str, codename: Option<&str>) -> Image {
         Image {
             distro: distro.to_string(),
-            names: names.iter().map(|name| name.to_string()).collect(),
+            version: version.to_string(),
+            codename: codename.map(str::to_string),
+            tags: Vec::new(),
             arch: Arch::AMD64,
             image_url: String::new(),
             checksum_url: String::new(),
@@ -108,70 +124,42 @@ mod tests {
     }
 
     #[test]
-    fn test_get_version_is_first_name() {
+    fn test_get_image_name_uses_the_version() {
         assert_eq!(
-            build_image("debian", &["12", "bookworm"]).get_version(),
-            "12"
+            build_image("debian", "12", Some("bookworm")).get_image_name(),
+            "debian:12"
+        );
+        assert_eq!(
+            build_image("archlinux", Image::ROLLING, None).get_image_name(),
+            "archlinux:rolling"
         );
     }
 
     #[test]
-    fn test_get_name_prefers_second_name() {
-        assert_eq!(
-            build_image("debian", &["12", "bookworm"]).get_name(),
-            "bookworm"
-        );
-    }
+    fn test_get_tags_joins_the_codename_and_the_derived_tags() {
+        let mut ubuntu = build_image("ubuntu", "26.04", Some("resolute"));
+        ubuntu.tags = vec!["stable".to_string(), "latest".to_string()];
 
-    #[test]
-    fn test_get_name_falls_back_to_single_name() {
-        assert_eq!(build_image("debian", &["bookworm"]).get_name(), "bookworm");
-    }
-
-    #[test]
-    fn test_get_image_names_joins_multiple_names() {
-        assert_eq!(
-            build_image("debian", &["12", "bookworm"]).get_image_names(),
-            "debian:{12, bookworm}"
-        );
-    }
-
-    #[test]
-    fn test_get_image_names_with_single_name() {
-        assert_eq!(
-            build_image("debian", &["bookworm"]).get_image_names(),
-            "debian:bookworm"
-        );
-    }
-
-    #[test]
-    fn test_to_name_uses_version_and_arch() {
-        assert_eq!(
-            build_image("debian", &["12", "bookworm"]).to_name(),
-            "debian:12:amd64"
-        );
+        assert_eq!(ubuntu.get_tags(), "resolute, stable, latest");
+        assert_eq!(build_image("fedora", "43", None).get_tags(), "");
     }
 
     #[test]
     fn test_to_file_name_uses_name_and_arch() {
         assert_eq!(
-            build_image("debian", &["12", "bookworm"]).to_file_name(),
+            build_image("debian", "12", Some("bookworm")).to_file_name(),
             "debian_bookworm_amd64"
+        );
+        assert_eq!(
+            build_image("archlinux", Image::ROLLING, None).to_file_name(),
+            "archlinux_rolling_amd64"
         );
     }
 
     #[test]
-    fn test_ord_compares_numeric_versions_numerically() {
-        assert!(build_image("debian", &["10"]) > build_image("debian", &["9"]));
-    }
-
-    #[test]
-    fn test_ord_falls_back_to_lexical_comparison() {
-        assert!(build_image("ubuntu", &["noble"]) > build_image("ubuntu", &["jammy"]));
-    }
-
-    #[test]
-    fn test_ord_compares_distro_first() {
-        assert!(build_image("alma", &["9"]) < build_image("debian", &["1"]));
+    fn test_ord_sorts_by_distro_then_version() {
+        assert!(build_image("debian", "10", None) > build_image("debian", "9", None));
+        assert!(build_image("ubuntu", "26.04", None) > build_image("ubuntu", "25.10", None));
+        assert!(build_image("alma", "9", None) < build_image("debian", "1", None));
     }
 }

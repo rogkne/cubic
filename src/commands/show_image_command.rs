@@ -22,7 +22,7 @@ impl Command for ShowImageCommand {
         let image = fetch_image_info(console, context.get_system(), env, &self.name)?;
 
         let mut view = MapView::new();
-        view.add("Name", &image.get_image_names());
+        view.add("Name", &image.get_image_name());
         view.add("Architecture", &image.arch.to_string());
         if let Some(size) = image.size {
             view.add("Size", &DataSize::new(size as usize).to_size());

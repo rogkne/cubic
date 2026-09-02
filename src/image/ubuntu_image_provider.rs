@@ -4,14 +4,6 @@ use crate::util;
 
 pub struct UbuntuImageProvider {}
 
-impl UbuntuImageProvider {
-    fn get_version_from_content(&self, content: &str) -> Option<String> {
-        util::find_and_extract(r"ubuntu-([^-]+)-minimal-cloudimg-[^.]+.img", content)
-            .into_iter()
-            .next()
-    }
-}
-
 impl ImageProvider for UbuntuImageProvider {
     fn get_distro(&self) -> &str {
         "ubuntu"
@@ -29,13 +21,15 @@ impl ImageProvider for UbuntuImageProvider {
         format!("{name}/release/")
     }
 
-    fn get_image_names(&self, image_file: &str, name: &str) -> Vec<String> {
-        let mut names = Vec::new();
-        if let Some(version) = self.get_version_from_content(image_file) {
-            names.push(version);
-        }
-        names.push(name.to_string());
-        names
+    fn get_version(&self, image_file: &str, name: &str) -> String {
+        util::find_and_extract(r"ubuntu-([^-]+)-minimal-cloudimg-[^.]+.img", image_file)
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| name.to_string())
+    }
+
+    fn get_codename(&self, name: &str) -> Option<String> {
+        Some(name.to_string())
     }
 
     fn get_image_file_pattern(&self, _name: &str, arch: Arch) -> String {
@@ -69,12 +63,14 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_names_extracts_version() {
+    fn test_get_version_and_codename() {
+        let provider = UbuntuImageProvider {};
+
         assert_eq!(
-            UbuntuImageProvider {}
-                .get_image_names("ubuntu-24.04-minimal-cloudimg-amd64.img", "noble"),
-            ["24.04", "noble"]
+            provider.get_version("ubuntu-24.04-minimal-cloudimg-amd64.img", "noble"),
+            "24.04"
         );
+        assert_eq!(provider.get_codename("noble"), Some("noble".to_string()));
     }
 
     #[test]
