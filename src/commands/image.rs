@@ -73,7 +73,9 @@ mod tests {
         );
         let image = Image {
             distro: "debian".to_string(),
-            names: vec!["12".to_string(), "bookworm".to_string()],
+            version: "12".to_string(),
+            codename: Some("bookworm".to_string()),
+            tags: Vec::new(),
             arch: Arch::AMD64,
             image_url: String::new(),
             checksum_url: String::new(),

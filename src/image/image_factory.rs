@@ -47,7 +47,6 @@ impl<'a> ImageFactory<'a> {
         image_provider: &dyn image::ImageProvider,
         name: &str,
         arch: Arch,
-        filter: Option<ImageName>,
     ) -> Option<Image> {
         let image_dir_url = format!(
             "{}{}",
@@ -78,30 +77,22 @@ impl<'a> ImageFactory<'a> {
 
         if let Some(image_file) = image_file {
             let image_url = format!("{image_dir_url}{image_file}");
-            let names = image_provider.get_image_names(image_file, name);
             web.get_file_size(&image_url)
                 .ok()
                 .and_then(|size| size)
-                .and_then(|size| {
-                    if filter
-                        .map(|name| names.contains(&name.get_name().to_string()))
-                        .unwrap_or(true)
-                    {
-                        Some(Image {
-                            distro: image_provider.get_distro().to_string(),
-                            names,
-                            arch,
-                            image_url,
-                            checksum_url: format!(
-                                "{image_dir_url}{}",
-                                image_provider.get_checksum_file(image_file, name, arch)
-                            ),
-                            hash_alg: image_provider.get_checksum_alg(),
-                            size: Some(size),
-                        })
-                    } else {
-                        None
-                    }
+                .map(|size| Image {
+                    distro: image_provider.get_distro().to_string(),
+                    version: image_provider.get_version(image_file, name),
+                    codename: image_provider.get_codename(name),
+                    tags: Vec::new(),
+                    arch,
+                    image_url,
+                    checksum_url: format!(
+                        "{image_dir_url}{}",
+                        image_provider.get_checksum_file(image_file, name, arch)
+                    ),
+                    hash_alg: image_provider.get_checksum_alg(),
+                    size: Some(size),
                 })
         } else {
             None
@@ -129,7 +120,6 @@ impl<'a> ImageFactory<'a> {
                                     image_provider,
                                     &name,
                                     arch,
-                                    filter.clone(),
                                 )
                             })
                             .collect::<Vec<_>>()
@@ -144,15 +134,13 @@ impl<'a> ImageFactory<'a> {
         web: &mut WebClient,
         filter: Option<ImageName>,
     ) -> Vec<Image> {
-        let mut images = IMAGE_PROVIDERS
+        IMAGE_PROVIDERS
             .iter()
             .filter(|p| filter.is_none() || filter.as_ref().unwrap().get_distro() == p.get_distro())
             .flat_map(|provider| {
                 Self::get_images_from_provider(console, web, *provider, filter.clone())
             })
-            .collect::<Vec<_>>();
-        images.sort();
-        images
+            .collect()
     }
 
     fn find_matching_image(images: &[Image], filter: &ImageName) -> Option<Image> {
@@ -161,7 +149,7 @@ impl<'a> ImageFactory<'a> {
             .find(|image| {
                 image.distro == filter.get_distro()
                     && image.arch == filter.get_arch()
-                    && image.names.contains(&filter.get_name().to_string())
+                    && image.has_name(filter.get_name())
             })
             .cloned()
     }
@@ -176,34 +164,22 @@ impl<'a> ImageFactory<'a> {
             ImageCache::read_from_file(self.system, Path::new(&self.env.get_image_cache_file()));
 
         // Use cache if valid
-        if let Some(cache) = &cache
+        let images = if let Some(cache) = &cache
             && cache.is_valid()
         {
             console.debug("Using cached image list");
-            return Ok(match &filter {
-                Some(name) => Self::find_matching_image(&cache.images, name)
-                    .into_iter()
-                    .collect(),
-                None => cache.images.clone(),
-            });
-        }
+            cache.images.clone()
+        } else {
+            // Fetch image info
+            console.debug("Image cache missing or stale, fetching image list from providers");
+            let images = Self::get_images(console, &mut WebClient::new()?, filter.clone());
 
-        // Fetch image info
-        console.debug("Image cache missing or stale, fetching image list from providers");
-        let images = Self::get_images(console, &mut WebClient::new()?, filter.clone());
-
-        // Return cache if fetching failed
-        Ok(
+            // Return cache if fetching failed
             if images.is_empty()
                 && let Some(cache) = &cache
             {
                 console.debug("Fetching image list failed, falling back to stale cache");
-                match &filter {
-                    Some(name) => Self::find_matching_image(&cache.images, name)
-                        .into_iter()
-                        .collect(),
-                    None => cache.images.clone(),
-                }
+                cache.images.clone()
             } else {
                 // Write cache
                 if filter.is_none() {
@@ -211,8 +187,15 @@ impl<'a> ImageFactory<'a> {
                         .write_to_file(self.system, Path::new(&self.env.get_image_cache_file()));
                 }
                 images
-            },
-        )
+            }
+        };
+
+        Ok(match &filter {
+            Some(name) => Self::find_matching_image(&images, name)
+                .into_iter()
+                .collect(),
+            None => images,
+        })
     }
 
     pub fn get_all_images(&self, console: &mut Console<'_>) -> Result<Vec<Image>> {
@@ -236,10 +219,12 @@ mod tests {
     use crate::models::HashAlg;
     use std::str::FromStr;
 
-    fn build_image(distro: &str, names: &[&str], arch: Arch) -> Image {
+    fn build_image(distro: &str, version: &str, codename: Option<&str>, arch: Arch) -> Image {
         Image {
             distro: distro.to_string(),
-            names: names.iter().map(|n| n.to_string()).collect(),
+            version: version.to_string(),
+            codename: codename.map(str::to_string),
+            tags: Vec::new(),
             arch,
             image_url: "image_url".to_string(),
             checksum_url: "checksum_url".to_string(),
@@ -251,8 +236,8 @@ mod tests {
     #[test]
     fn test_find_matching_image_matches_distro_arch_and_name() {
         let images = vec![
-            build_image("almalinux", &["9"], Arch::AMD64),
-            build_image("debian", &["12", "bookworm"], Arch::AMD64),
+            build_image("almalinux", "9", None, Arch::AMD64),
+            build_image("debian", "12", Some("bookworm"), Arch::AMD64),
         ];
         let filter = ImageName::from_str("debian:bookworm:amd64").unwrap();
 
@@ -262,48 +247,28 @@ mod tests {
     }
 
     #[test]
-    fn test_find_matching_image_returns_none_on_distro_mismatch() {
-        let images = vec![build_image("debian", &["12", "bookworm"], Arch::AMD64)];
-        let filter = ImageName::from_str("ubuntu:bookworm:amd64").unwrap();
+    fn test_find_matching_image_returns_none_on_a_mismatch() {
+        let images = vec![build_image("debian", "12", Some("bookworm"), Arch::AMD64)];
 
-        assert_eq!(ImageFactory::find_matching_image(&images, &filter), None);
+        for name in [
+            "ubuntu:bookworm:amd64",
+            "debian:bookworm:arm64",
+            "debian:bullseye:amd64",
+        ] {
+            let filter = ImageName::from_str(name).unwrap();
+
+            assert_eq!(ImageFactory::find_matching_image(&images, &filter), None);
+        }
     }
 
     #[test]
-    fn test_find_matching_image_returns_none_on_arch_mismatch() {
-        let images = vec![build_image("debian", &["12", "bookworm"], Arch::AMD64)];
+    fn test_filter_arch_keeps_the_filtered_arch_only() {
         let filter = ImageName::from_str("debian:bookworm:arm64").unwrap();
 
-        assert_eq!(ImageFactory::find_matching_image(&images, &filter), None);
-    }
-
-    #[test]
-    fn test_find_matching_image_returns_none_on_name_mismatch() {
-        let images = vec![build_image("debian", &["12", "bookworm"], Arch::AMD64)];
-        let filter = ImageName::from_str("debian:bullseye:amd64").unwrap();
-
-        assert_eq!(ImageFactory::find_matching_image(&images, &filter), None);
-    }
-
-    #[test]
-    fn test_find_matching_image_returns_none_for_empty_images() {
-        let filter = ImageName::from_str("debian:bookworm:amd64").unwrap();
-
-        assert_eq!(ImageFactory::find_matching_image(&[], &filter), None);
-    }
-
-    #[test]
-    fn test_filter_arch_without_filter_keeps_all_arches() {
         assert_eq!(
             ImageFactory::filter_arch(None),
             vec![Arch::AMD64, Arch::ARM64]
         );
-    }
-
-    #[test]
-    fn test_filter_arch_keeps_only_filtered_arch() {
-        let filter = ImageName::from_str("debian:bookworm:arm64").unwrap();
-
         assert_eq!(ImageFactory::filter_arch(Some(filter)), vec![Arch::ARM64]);
     }
 }

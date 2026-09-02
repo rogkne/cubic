@@ -22,10 +22,6 @@ impl ImageProvider for AlmaLinuxImageProvider {
         format!("{name}/cloud/{arch_name}/images/",)
     }
 
-    fn get_image_names(&self, _image_file: &str, name: &str) -> Vec<String> {
-        vec![name.to_string()]
-    }
-
     fn get_image_file_pattern(&self, name: &str, arch: Arch) -> String {
         let arch_name = arch.as_canonical_str();
         format!("AlmaLinux-{name}-GenericCloud-latest.{arch_name}.qcow2")

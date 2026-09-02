@@ -1,5 +1,5 @@
 use crate::image::ImageProvider;
-use crate::models::{Arch, HashAlg};
+use crate::models::{Arch, HashAlg, Image};
 
 pub struct GentooImageProvider {}
 
@@ -21,8 +21,8 @@ impl ImageProvider for GentooImageProvider {
         format!("{arch_name}/autobuilds/current-di-{arch_name}-cloudinit/")
     }
 
-    fn get_image_names(&self, _image_file: &str, name: &str) -> Vec<String> {
-        vec![name.to_string()]
+    fn get_version(&self, _image_file: &str, _name: &str) -> String {
+        Image::ROLLING.to_string()
     }
 
     fn get_image_file_pattern(&self, _name: &str, arch: Arch) -> String {
