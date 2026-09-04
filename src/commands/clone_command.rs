@@ -62,7 +62,7 @@ impl Command for CloneCommand {
         target.ssh_host_key = None;
 
         // Create VM instance
-        CreateInstanceAction::new().run(context, image_path, target)?;
+        CreateInstanceAction::new().run(context, image_path, target, false)?;
 
         console.stop();
         Ok(())

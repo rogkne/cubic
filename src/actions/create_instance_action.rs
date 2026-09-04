@@ -18,6 +18,7 @@ impl CreateInstanceAction {
         context: &Context,
         image_path: &str,
         mut instance: Instance,
+        overlay: bool,
     ) -> Result<()> {
         let system = context.get_system();
         let instance_name = instance.name.clone();
@@ -32,7 +33,11 @@ impl CreateInstanceAction {
         SshKeyGenerator::new().generate_key(system, &Path::new(tmp_dir).join("ssh_client_key"))?;
 
         // Create virtual machine instance image file
-        system.copy_file(Path::new(image_path), Path::new(tmp_image))?;
+        if overlay {
+            QemuImg::new(system).create_overlay(image_path, tmp_image)?;
+        } else {
+            system.copy_file(Path::new(image_path), Path::new(tmp_image))?;
+        }
 
         // Set disk capacity
         QemuImg::new(system).resize(tmp_image, instance.disk_capacity.get_bytes() as u64)?;

@@ -1,8 +1,9 @@
+use crate::actions::{LoadInstanceAction, StopInstanceAction};
 use crate::commands::{self, Command};
 use crate::error::Result;
 use crate::models::Target;
 use crate::view::Console;
-use clap::{self, Parser};
+use clap::{self, ArgAction, Parser};
 
 /// Create and start VM instances
 ///
@@ -28,6 +29,9 @@ use clap::{self, Parser};
 ///   Run a VM instance without network access:
 ///   $ cubic run example6 --isolate ubuntu
 ///
+///   Run a VM instance and delete it when you exit:
+///   $ cubic run --rm example7 -i debian:trixie
+///
 ///   Every distribution has the tags latest and stable. The tag latest is the
 ///   newest release and the tag stable is the newest long term release. A plain
 ///   name is a shortcut for stable, so --image ubuntu gives you the last LTS.
@@ -37,20 +41,79 @@ use clap::{self, Parser};
 pub struct RunCommand {
     #[clap(flatten)]
     create_cmd: commands::CreateCommand,
+    /// Delete the VM instance when the session ends
+    #[clap(long, action = ArgAction::SetTrue)]
+    rm: bool,
     #[clap(flatten)]
     accel: commands::AccelArg,
     #[clap(flatten)]
     env_args: commands::EnvArgs,
 }
 
+impl RunCommand {
+    // Best effort, a failure here must not mask the session result.
+    fn cleanup(&self, console: &mut Console<'_>, context: &commands::Context) {
+        let name = self.create_cmd.instance_name.value.as_str();
+        let store = context.get_instance_store();
+
+        if let Ok(instance) = LoadInstanceAction::new().run(context, console, name) {
+            StopInstanceAction::new(&instance).run(store, true).ok();
+            store.delete(&instance).ok();
+        }
+    }
+}
+
 impl Command for RunCommand {
     fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
-        self.create_cmd.run(console, context)?;
-        commands::SshCommand {
+        self.create_cmd.create(console, context, self.rm)?;
+
+        let result = commands::SshCommand {
             target: Target::from_instance_name(self.create_cmd.instance_name.value.clone()),
             accel: self.accel,
             env_args: self.env_args.clone(),
         }
-        .run(console, context)
+        .run(console, context);
+
+        if self.rm {
+            self.cleanup(console, context);
+        }
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instance::InstanceStoreMock;
+    use crate::models::{Environment, Instance};
+    use crate::platform::SystemMock;
+    use std::rc::Rc;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_rm_stops_and_deletes_the_instance() {
+        let system = SystemMock::new();
+        let console = &mut Console::new(&system);
+        let store = InstanceStoreMock::new_with_running(
+            vec![Instance {
+                name: "web".to_string(),
+                ..Instance::default()
+            }],
+            &["web"],
+        );
+        let killed = Arc::clone(&store.killed);
+        let deleted = Arc::clone(&store.deleted);
+        let context = commands::Context::new(
+            Rc::new(SystemMock::new()),
+            Environment::default(),
+            Box::new(store),
+        );
+
+        RunCommand::try_parse_from(["run", "--rm", "web", "-i", "debian:trixie"])
+            .unwrap()
+            .cleanup(console, &context);
+
+        assert_eq!(*killed.lock().unwrap(), ["web"]);
+        assert_eq!(*deleted.lock().unwrap(), ["web"]);
     }
 }

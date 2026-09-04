@@ -159,8 +159,13 @@ impl CreateCommand {
     }
 }
 
-impl Command for CreateCommand {
-    fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+impl CreateCommand {
+    pub fn create(
+        &self,
+        console: &mut Console<'_>,
+        context: &Context,
+        overlay: bool,
+    ) -> Result<()> {
         let env = context.get_env();
         let instance_store = context.get_instance_store();
 
@@ -209,10 +214,16 @@ impl Command for CreateCommand {
         ));
 
         let image_path = &env.get_image_file(&image.to_file_name());
-        CreateInstanceAction::new().run(context, image_path, instance)?;
+        CreateInstanceAction::new().run(context, image_path, instance, overlay)?;
 
         console.stop();
         Ok(())
+    }
+}
+
+impl Command for CreateCommand {
+    fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+        self.create(console, context, false)
     }
 }
 
