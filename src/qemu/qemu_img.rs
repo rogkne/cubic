@@ -66,6 +66,25 @@ impl<'a> QemuImg<'a> {
         }
     }
 
+    pub fn create_overlay(&self, base_image: &str, image: &str) -> Result<()> {
+        let mut command = self.command();
+        command
+            .arg("create")
+            .arg("-q")
+            .arg("-f")
+            .arg("qcow2")
+            .arg("-F")
+            .arg("qcow2")
+            .arg("-b")
+            .arg(base_image)
+            .arg(image);
+
+        self.system
+            .run_command(&command)
+            .map(|_| ())
+            .map_err(Self::map_error)
+    }
+
     pub fn resize(&self, image: &str, size: u64) -> Result<()> {
         let mut command = self.command();
         command.arg("resize").arg(image).arg(size.to_string());
@@ -176,6 +195,18 @@ mod tests {
             QemuImg::new(&system).resize("/data/machines/test/image", 2048),
             Err(Error::QemuNotFound)
         ));
+    }
+
+    #[test]
+    fn test_create_overlay_backs_the_image_by_the_base_image() {
+        let command = "qemu-img create -q -f qcow2 -F qcow2 -b /cache/images/debian /data/machines/test/machine.img";
+        let system = SystemMock::new().add_command_output(command, b"");
+
+        QemuImg::new(&system)
+            .create_overlay("/cache/images/debian", "/data/machines/test/machine.img")
+            .unwrap();
+
+        assert_eq!(system.get_executed_commands(), vec![command]);
     }
 
     #[test]
