@@ -59,6 +59,7 @@ Cubic fits a lot of everyday workflows:
 - Creates VM instances from reusable templates
 - Snapshots a VM disk and restores it later
 - Clones and renames VM instances
+- Runs temporary VM instances that are deleted after use
 - Isolates a VM from the network with one flag
 
 **Safe by default**
