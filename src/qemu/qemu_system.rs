@@ -46,8 +46,11 @@ impl QemuSystem {
         // never falls back to /dev/urandom, which is absent on Windows.
         command.arg("-object").arg("rng-builtin,id=rng0");
         command.arg("-device").arg("virtio-rng-pci,rng=rng0");
-        // Allow memory reclaim via virtio-balloon.
-        command.arg("-device").arg("virtio-balloon-pci");
+        // Reclaim host memory via virtio-balloon. Free page reporting lets the
+        // guest hand back its free pages on its own, without any host action.
+        command
+            .arg("-device")
+            .arg("virtio-balloon-pci,free-page-reporting=on");
 
         Ok(QemuSystem { command })
     }
@@ -244,9 +247,13 @@ mod tests {
     }
 
     #[test]
-    fn test_from_adds_virtio_balloon() {
+    fn test_from_adds_virtio_balloon_that_reports_free_pages() {
         let qemu = QemuSystem::from(&SystemMock::new(), Arch::ARM64).unwrap();
-        assert!(qemu.command.get_command().contains("virtio-balloon-pci"));
+        assert!(
+            qemu.command
+                .get_command()
+                .contains("virtio-balloon-pci,free-page-reporting=on")
+        );
     }
 
     #[test]
