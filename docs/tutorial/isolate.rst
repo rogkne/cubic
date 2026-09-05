@@ -22,9 +22,9 @@ Create an Isolated VM Instance
     Running:    no
     Arch:       amd64
     CPUs:       4
-    Memory:     2.0 GiB
-    Disk Used:  407.6 MiB
-    Disk Total: 100.0 GiB
+    Memory:     2048 M
+    Disk Used:  408 M
+    Disk Total: 100 G
     User:       alice
     Isolated:   yes
     SSH Port:   46831

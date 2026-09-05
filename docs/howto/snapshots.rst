@@ -32,9 +32,9 @@ List the Snapshots
     Running:      no
     Arch:         amd64
     CPUs:         4
-    Memory:       2.0 GiB
-    Disk Used:    941.2 MiB
-    Disk Total:   100.0 GiB
+    Memory:       2048 M
+    Disk Used:    941 M
+    Disk Total:   100 G
     User:         alice
     Isolated:     no
     SSH Port:     40881

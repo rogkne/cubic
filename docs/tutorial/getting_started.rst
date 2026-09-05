@@ -24,8 +24,8 @@ See What You Created
 .. code-block::
 
     $ cubic instances
-    Name      Arch    CPUs    Memory   Disk Used   Disk Total   Running
-    example   amd64      4   2.0 GiB   941.2 MiB    100.0 GiB        no
+    Name      Arch    CPUs   Memory      Disk   Running
+    example   amd64      4   2048 M   1/100 G        no
 
 The VM instance exists but nothing runs yet, so ``Running`` is ``no``. Cubic
 picked the number of CPUs and the memory from the resources of your host, so
@@ -74,8 +74,8 @@ The VM instance keeps running after you leave it:
 .. code-block::
 
     $ cubic instances
-    Name      Arch    CPUs    Memory   Disk Used   Disk Total   Running
-    example   amd64      4   2.0 GiB   941.2 MiB    100.0 GiB       yes
+    Name      Arch    CPUs   Memory      Disk   Running
+    example   amd64      4   2048 M   1/100 G       yes
 
 Next Steps
 ----------

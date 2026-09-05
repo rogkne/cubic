@@ -131,6 +131,6 @@ mod tests {
                 .add_file("/cache/instances/test/user-data.img", &[0; 1024]),
         );
 
-        assert!(run_prune(&system, &env).contains("frees 2.0 KiB"));
+        assert!(run_prune(&system, &env).contains("frees 2048 B"));
     }
 }

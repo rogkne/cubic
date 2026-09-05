@@ -28,15 +28,24 @@ impl TransferView {
 impl Animation for TransferView {
     fn render(&mut self, width: usize) -> String {
         let text = format!("{:TEXT_WIDTH$.TEXT_WIDTH$}", self.message);
-        let transferred = DataSize::new(self.transferred_bytes as usize).to_size();
 
         let Some(total_bytes) = self.total_bytes else {
+            let transferred = DataSize::new(self.transferred_bytes as usize).to_size();
             return format!("{text}{transferred}");
         };
 
-        let total = DataSize::new(total_bytes as usize).to_size();
+        // Show the transferred size in the unit of the total so the two read
+        // as a fraction. Its value never has more digits than the total, so
+        // the field width stays fixed and nothing shifts during a transfer.
+        let total = DataSize::new(total_bytes as usize);
+        let transferred = DataSize::new(self.transferred_bytes as usize).to_value_in(&total);
+        let size_width = total.to_value_in(&total).to_string().len();
         let percent = self.transferred_bytes as f64 / total_bytes as f64;
-        let stats = format!("{:>3.0}% {transferred} / {total}", percent * 100_f64);
+        let stats = format!(
+            "{:>3.0}% {transferred:>size_width$}/{}",
+            percent * 100_f64,
+            total.to_size()
+        );
         let bar_width = width
             .saturating_sub(text.len() + 2 + stats.len())
             .max(MIN_BAR_WIDTH);
@@ -64,7 +73,17 @@ mod tests {
         let mut view = TransferView::new("Downloading ubuntu");
         view.set_progress(50, Some(100));
         let line = view.render(80);
-        assert!(line.ends_with("50% 50   B / 100   B"));
+        assert!(line.ends_with("50%  50/100 B"));
+    }
+
+    #[test]
+    fn test_stats_stay_put_as_the_size_grows() {
+        let mut view = TransferView::new("Downloading ubuntu");
+        view.set_progress(1, Some(10 * 1024 * 1024 * 1024));
+        let small = view.render(80);
+        view.set_progress(5 * 1024 * 1024 * 1024, Some(10 * 1024 * 1024 * 1024));
+        let large = view.render(80);
+        assert_eq!(small.find('/'), large.find('/'));
     }
 
     #[test]

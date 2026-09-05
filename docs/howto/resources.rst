@@ -39,9 +39,9 @@ Check the Result
     Running:      no
     Arch:         amd64
     CPUs:         2
-    Memory:       2.0 GiB
-    Disk Used:    447.8 MiB
-    Disk Total:   200.0 GiB
+    Memory:       2048 M
+    Disk Used:    448 M
+    Disk Total:   200 G
     User:         alice
     Isolated:     no
     SSH Port:     33033
