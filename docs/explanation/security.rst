@@ -1,18 +1,18 @@
+.. _security:
+
 Security
 ========
 
 Cubic is designed with three security goals in mind:
 
- - The first goal is to protect the host from the guest. A virtual machine may run
-   untrusted or even malicious software, so the guest must never be able to take
-   control of the host it runs on.
+* **Protect the host from the guest.** A virtual machine may run untrusted or
+  even malicious software, so the guest must never be able to take control of
+  the host it runs on.
 
- - The second goal is to protect each user's virtual machines from other people who
-   use the same computer. One user should not be able to watch or control the
-   virtual machines that belong to another user.
+* **Protect your virtual machines from other users of the same computer.** One
+  user should not be able to watch or control the virtual machines of another.
 
- - The third goal is to protect the user's virtual machines from attacks coming
-   over any network the host is connected to.
+* **Protect your virtual machines from the network** the host is connected to.
 
 To meet these goals Cubic keeps the amount of trusted code small. It runs
 without a background service, it never asks for extra privileges, and it
@@ -40,13 +40,10 @@ publishes next to it, using either SHA256 or SHA512. If the value does not
 match, Cubic rejects the download and stops with an ``InvalidChecksum`` error.
 
 This guards against downloads that are corrupted or altered on the way to your
-machine. The verified image is cached under ``~/.cache/cubic/images/`` and
-shared by every virtual machine that uses the same distribution and version, so
-it only needs to be fetched and checked once.
+machine. The verified image is cached and shared by every virtual machine of the
+same distribution and version, so it is fetched and checked once.
+See :ref:`file locations` for the cache directory of each platform.
 
-In the future Cubic could go one step further and verify a distro signature over
-the checksum file. That would remove the need to trust the connection to the
-mirror at all.
 
 Bound to Localhost
 ------------------
@@ -66,10 +63,10 @@ network, but on its own it does not separate one local user from another. That
 separation comes from the authentication on each connection, which the sections
 below describe.
 
-By default a guest still has outbound access so it can install packages and
-reach the internet. Creating a machine with ``--isolate`` cuts off this outbound
-access for workloads that should stay fully contained. You can also turn it on
-and off later with ``cubic modify --isolate`` and ``cubic modify --no-isolate``.
+Binding to loopback says nothing about the other direction. A guest still
+reaches the internet by default, so it can install packages, and ``--isolate``
+cuts that off for workloads that must stay contained. :ref:`networking` explains
+both directions.
 
 Port Forwarding
 ---------------
@@ -143,9 +140,39 @@ Keeping Instances Apart
 
 Everything that belongs to a virtual machine, including its SSH private key, its
 TLS certificates, its disk images and its cloud-init seed image, is stored under
-your own data directory, for example ``~/.local/share/cubic/machines/<name>/``
-on Linux. Reaching a running machine means holding the SSH key or the TLS client
+your own data directory, which :ref:`file locations` names for each platform.
+Reaching a running machine means holding the SSH key or the TLS client
 certificate that is kept inside it.
+
+What Cubic Does Not Protect Against
+-----------------------------------
+
+The goals above draw a line around what Cubic defends. These things sit outside
+it, and knowing that is part of using it safely.
+
+**Anything running as you.** The protection is between user accounts, not inside
+one. Any process of your own user can read the SSH private key, the TLS client
+certificate and the disk image of every virtual machine you own, and can
+therefore reach every guest you can reach.
+
+**A port you publish yourself.** A forward bound to ``0.0.0.0`` or to a public
+address of the host puts the service inside the guest on the network, with
+whatever authentication that service brings and no more.
+
+**Data at rest.** Disk images, snapshots, SSH keys and certificates are stored
+as plain files. Anyone who can read your data directory, including a backup that
+leaves the machine, gets the contents of every VM instance. Use encryption on
+the host if that matters.
+
+**A mirror that serves a matching checksum.** Verification proves the image
+matches the checksum the distribution published next to it. It does not prove
+that either file came from the distribution. Verifying a distribution signature
+over the checksum file would, and would remove the need to trust the connection
+to the mirror at all. Cubic does not do that yet.
+
+**A network cut with ``--isolate``.** Isolation stops guest traffic. It is a
+containment feature rather than a boundary against a guest that has already
+broken out of QEMU.
 
 Security Issues
 ---------------

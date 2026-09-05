@@ -5,7 +5,7 @@ use crate::models::Target;
 use crate::view::Console;
 use clap::{self, ArgAction, Parser};
 
-/// Create and start VM instances
+/// Create and start a VM instance
 ///
 /// This command is a shortcut for the three subcommands `create`, `start` and `ssh`.
 ///
@@ -27,7 +27,7 @@ use clap::{self, ArgAction, Parser};
 ///   $ cubic run example5 -e "sudo apt install -y vim" -i ubuntu
 ///
 ///   Run a VM instance without network access:
-///   $ cubic run example6 --isolate ubuntu
+///   $ cubic run example6 --isolate -i ubuntu
 ///
 ///   Run a VM instance and delete it when you exit:
 ///   $ cubic run --rm example7 -i debian:trixie

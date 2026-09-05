@@ -5,7 +5,7 @@ use crate::models::InstanceName;
 use crate::view::Console;
 use clap::Parser;
 
-/// Rename VM instances
+/// Rename a VM instance
 ///
 /// Examples:
 ///
