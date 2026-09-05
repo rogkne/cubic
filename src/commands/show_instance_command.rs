@@ -6,7 +6,7 @@ use crate::util;
 use crate::view::{Console, MapView};
 use clap::Parser;
 
-/// Show VM instances
+/// Show a VM instance
 #[derive(Parser)]
 pub struct ShowInstanceCommand {
     #[clap(flatten)]

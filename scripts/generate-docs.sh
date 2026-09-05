@@ -20,74 +20,81 @@ function generate_cmd_doc() {
 # Set version
 sed "s/^release = .*$/release = '$version'/g" -i docs/conf.py
 
-# Create Reference Doc Directory
-mkdir -p docs/reference
+# Create Command Reference Doc Directory
+mkdir -p docs/reference/commands
 
 # Generate cubic help
-generate_cmd_doc "cubic" "_ref_cubic" "docs/reference/cubic.rst"
+generate_cmd_doc "cubic" "_ref_cubic" "docs/reference/commands/cubic.rst"
 
 # Generate cubic subcommands help
 for cmd in "${CMDS[@]}"; do
-    generate_cmd_doc "cubic $cmd" "_ref_cubic_$cmd" "docs/reference/$cmd.rst" "$cmd"
+    generate_cmd_doc "cubic $cmd" "_ref_cubic_$cmd" "docs/reference/commands/$cmd.rst" "$cmd"
 done
 
-# Generate reference/index.rst as the Command Reference landing page
-cat > docs/reference/index.rst << 'REFEOF'
-Command Reference
-=================
-
-.. toctree::
-   :hidden:
-
-   cubic
-REFEOF
-
-for cmd in "${CMDS[@]}"; do
-    echo "   $cmd" >> docs/reference/index.rst
-done
-
-# Generate index.rst with a single root toctree
+# Generate index.rst with one toctree per Diataxis section
 cat > docs/index.rst << 'EOF'
 Cubic
 =====
 
 .. toctree::
-   :caption: How-To
+   :caption: Tutorial
+   :hidden:
+
+   tutorial/getting_started
+   tutorial/templates
+   tutorial/snapshots
+   tutorial/isolate
+
+.. toctree::
+   :caption: How-to Guides
    :hidden:
 
    howto/install
-   howto/shell_completions
-   howto/getting_started
+   howto/temporary_vm
+   howto/exec
+   howto/copy_files
+   howto/resources
    howto/snapshots
    howto/templates
-   howto/http_server
+   howto/ports
    howto/ssh_connect
    howto/console_login
-   howto/environment_variables
+   howto/env_vars
+   howto/proxy
+   howto/qemu_not_found
+   howto/recover_disk
 
 .. toctree::
-   :caption: Troubleshooting
+   :caption: Reference
    :hidden:
 
-   troubleshooting/qemu_not_found
-   troubleshooting/recover_disk
+   reference/images
+   reference/instance
+   reference/template
+   reference/values
+   reference/guest
+   reference/files
+   reference/environment_variables
 
 .. toctree::
-   :caption: Internals
+   :caption: Explanation
    :hidden:
 
-   internals/how_it_works
-   internals/security
-   internals/qemu_detection
+   explanation/design
+   explanation/machine
+   explanation/networking
+   explanation/security
+   explanation/qemu_detection
 
 .. toctree::
-   :caption: Command Reference
+   :caption: Commands
    :hidden:
 
+   reference/commands/cubic
 EOF
 
 for cmd in "${CMDS[@]}"; do
-    echo "   reference/$cmd" >> docs/index.rst
+    echo "   reference/commands/$cmd" >> docs/index.rst
 done
 
 cat >> docs/index.rst << 'EOF'
@@ -96,6 +103,12 @@ Cubic spins up Linux virtual machines on Linux, macOS and Windows with a single 
 
 Every distribution comes as an official image and is ready to use within seconds, so you skip the long installation. Cubic keeps things simple and secure by acting as lightweight glue over proven tools. No privileged system service is required and every VM runs as your normal user.
 Cubic is built on top of ``QEMU``, ``EDK2``, official Linux distribution images and ``cloud-init``.
+
+The Tutorial builds your first virtual machine step by step.
+The How-to Guides each solve one task.
+The Reference lists the settings.
+The Explanation covers how Cubic works and why.
+The Commands pages list every command and its options.
 
 Features
 ---------
@@ -111,7 +124,7 @@ Features
 * Runs on **Linux**, **macOS** and **Windows** hosts
 * Ships **Alma Linux**, **Arch Linux**, **Debian**, **Fedora**, **Gentoo**, **OpenSUSE**, **Rocky Linux** and **Ubuntu**
 * Runs **amd64** and **arm64** guests
-* Accelerates every VM with **KVM** (Linux), **Hypervisor** (macOS) and **WHPX** (Windows)
+* Uses the hardware accelerator of the host, **KVM** on Linux, **Hypervisor** on macOS, **WHPX** on Windows and **NVMM** on BSD
 
 **Everyday work**
 
@@ -132,7 +145,7 @@ Features
 * Encrypts the QEMU control channels with mutual TLS
 
 Source Code
-===========
+-----------
 
 The source code of Cubic is on `Github`_.
 

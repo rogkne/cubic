@@ -3,163 +3,144 @@
 Install Cubic
 =============
 
-Install on Linux
+Ubuntu (Snap)
+-------------
+
+.. code-block::
+
+    sudo snap install cubic && \
+    sudo snap connect cubic:kvm
+
+The second command connects the KVM interface, which lets VM instances
+use hardware acceleration. The package is on the `Snap Store`_.
+
+.. _Snap Store: https://snapcraft.io/cubic
+
+macOS (Homebrew)
 ----------------
 
-You can install Cubic on Linux with the following methods:
+.. code-block::
 
-* `Install with Snap`_  (**recommended**)
-* `Install with Cargo`_
-* `Install with Homebrew`_
+    brew install cubic-vm/cubic/cubic
 
-Install on macOS
+The formula lives in the `Homebrew tap`_ and also installs on Linux.
+
+.. _Homebrew tap: https://github.com/cubic-vm/homebrew-cubic
+
+Windows (winget)
 ----------------
 
-You can install Cubic on macOS with the following methods:
-
-* `Install with Homebrew`_ (**recommended**)
-* `Install with Cargo`_
-
-Install on Windows
-------------------
-
-You can install Cubic on Windows with the following method:
-
-* `Install with Winget`_  (**recommended**)
-* `Install with Cargo`_
-
-Install with Snap
------------------
-
-Use the following command to install Cubic with `Snap`_:
-
 .. code-block::
 
-       $ sudo snap install cubic
+    winget install cubic-vm.cubic
 
-Connect the KVM interface to accelerate the virtual machine (recommended):
+QEMU is installed automatically as a dependency of the `winget package`_.
 
-.. code-block::
+.. _winget package: https://learn.microsoft.com/windows/package-manager/winget/
 
-       $ sudo snap connect cubic:kvm
-
-.. _Snap: https://snapcraft.io/cubic
-
-Install with Homebrew
----------------------
-
-Use the following command to install Cubic via `Homebrew`_:
-
-.. code-block::
-
-       $ brew install cubic-vm/cubic/cubic
-
-.. _Homebrew: https://github.com/cubic-vm/homebrew-cubic
-
-Install with Winget
--------------------
-
-Use the following command to install Cubic via `Winget`_:
-
-.. code-block::
-
-       $ winget install cubic-vm.cubic
-
-QEMU is installed automatically as a dependency.
-
-.. _Winget: https://learn.microsoft.com/windows/package-manager/winget/
-
-Install with Cargo
-------------------
-
-1. Install Dependencies
-^^^^^^^^^^^^^^^^^^^^^^^
+Others (Cargo)
+--------------
 
 Cubic needs QEMU and its UEFI firmware on the host. Install them with your
 package manager:
 
-For Debian, Ubuntu and derivatives:
-
 .. code-block::
 
+    # Debian/Ubuntu
     sudo apt install qemu-system qemu-utils ovmf qemu-efi-aarch64
-
-For Fedora and derivatives:
-
-.. code-block::
-
+    # Fedora/RHEL
     sudo dnf install qemu-system-x86 qemu-img edk2-ovmf edk2-aarch64
-
-For Arch Linux and derivatives:
-
-.. code-block::
-
+    # Arch Linux
     sudo pacman -S qemu-full edk2-ovmf edk2-armvirt
-
-For openSUSE and derivatives:
-
-.. code-block::
-
+    # openSUSE
     sudo zypper install qemu qemu-tools qemu-ovmf-x86_64 qemu-uefi-aarch64
-
-For macOS:
-
-.. code-block::
-
+    # macOS
     brew install qemu
-
-For Windows:
-
-.. code-block::
-
+    # Windows
     winget install SoftwareFreedomConservancy.QEMU
 
-2. Install Rust toolchain
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Install the `Rust toolchain`_:
+Install the `Rust toolchain`_ and then build Cubic:
 
 .. code-block::
 
     rustup toolchain install stable
+    cargo install cubic
 
 .. _Rust toolchain: https://rustup.rs
 
-3. Install Cubic
-^^^^^^^^^^^^^^^^
-
-.. code-block::
-
-    cargo install cubic
-
-4. Update PATH Environment Variable
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Add Cargo bin directory to PATH environment variable.
-
-For Linux distributions:
+Add the Cargo bin directory to your ``PATH`` on Linux:
 
 .. code-block::
 
     echo 'export PATH="$PATH:$HOME/.cargo/bin"' >> ~/.profile
     source ~/.profile
 
-5. Allow KVM Acceleration (Linux only, Optional)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-It is recommended to add Kernel-based Virtual Machine (KVM) permission to your user for optimal VM performance:
+On Linux, add your user to the ``kvm`` group for hardware acceleration. The
+change becomes active after the next login:
 
 .. code-block::
 
     sudo usermod -a -G kvm $USER
 
-This requires to exit the current user session and to relogin to make the change active.
-
-Test Cubic
-^^^^^^^^^^
-
-Check if Cubic is installed correctly:
+Verify the Install
+------------------
 
 .. code-block::
 
     cubic --help
+
+.. _shell completions:
+
+Shell Completions
+-----------------
+
+Cubic generates completion scripts for Bash, Zsh, Fish and PowerShell.
+Regenerate the script after an update so it matches the installed commands and
+options.
+
+Bash
+^^^^
+
+.. code-block::
+
+    mkdir -p ~/.local/share/cubic
+    cubic completions bash > ~/.local/share/cubic/cubic.bash
+    echo 'source ~/.local/share/cubic/cubic.bash' >> ~/.bashrc
+
+Zsh
+^^^
+
+.. code-block::
+
+    mkdir -p ~/.zfunc
+    cubic completions zsh > ~/.zfunc/_cubic
+
+Add ``fpath=(~/.zfunc $fpath)`` to ``~/.zshrc`` before its ``compinit`` call.
+
+Fish
+^^^^
+
+.. code-block::
+
+    mkdir -p ~/.config/fish/completions
+    cubic completions fish > ~/.config/fish/completions/cubic.fish
+
+PowerShell
+^^^^^^^^^^
+
+.. code-block::
+
+    cubic completions powershell > $HOME\cubic.ps1
+
+Add this line to the profile that ``$PROFILE`` names:
+
+.. code-block::
+
+    . $HOME\cubic.ps1
+
+Start a new shell, type ``cubic`` and press Tab to check the setup.
+
+Next Steps
+----------
+
+Continue with :ref:`create vm` and create your first virtual machine.
