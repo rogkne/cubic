@@ -65,9 +65,9 @@ including every port forwarding rule:
     Running:      yes
     Arch:         amd64
     CPUs:         4
-    Memory:       4.0 GiB
-    Disk Used:    1.2 GiB
-    Disk Total:   100.0 GiB
+    Memory:       4096 M
+    Disk Used:    1229 M
+    Disk Total:   100 G
     User:         alice
     Isolated:     no
     SSH Port:     10022

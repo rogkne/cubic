@@ -10,17 +10,17 @@ use clap::Parser;
 /// Examples:
 ///
 ///   $ cubic instances
-///   Name          Arch    CPUs     Memory   Disk Used   Disk Total   Running
-///   noble-arm64   arm64      8    8.0 GiB     4.4 GiB    100.0 GiB       yes
-///   trixie        amd64      6   16.0 GiB         n/a    100.0 GiB       yes
-///   fedora        amd64      4    4.0 GiB    10.0 GiB    100.0 GiB        no
+///   Name          Arch    CPUs   Memory       Disk   Running
+///   noble-arm64   arm64      8   8192 M    4/100 G       yes
+///   trixie        amd64      6     16 G      100 G       yes
+///   fedora        amd64      4   4096 M   10/100 G        no
 ///
 ///   Show the process id of each running VM instance:
 ///   $ cubic instances --all
-///   PID    Name          Arch    CPUs     Memory   Disk Used   Disk Total   Running
-///          noble-arm64   arm64      8    8.0 GiB     4.4 GiB    100.0 GiB       yes
-///   1059   trixie        amd64      6   16.0 GiB         n/a    100.0 GiB       yes
-///          fedora        amd64      4    4.0 GiB    10.0 GiB    100.0 GiB        no
+///   PID    Name          Arch    CPUs   Memory       Disk   Running
+///          noble-arm64   arm64      8   8192 M    4/100 G       yes
+///   1059   trixie        amd64      6     16 G      100 G       yes
+///          fedora        amd64      4   4096 M   10/100 G        no
 ///
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
@@ -44,8 +44,7 @@ impl Command for ListInstanceCommand {
             .add("Arch", Alignment::Left)
             .add("CPUs", Alignment::Right)
             .add("Memory", Alignment::Right)
-            .add("Disk Used", Alignment::Right)
-            .add("Disk Total", Alignment::Right)
+            .add("Disk", Alignment::Right)
             .add("Running", Alignment::Right);
 
         for instance_name in &instance_names {
@@ -59,15 +58,19 @@ impl Command for ListInstanceCommand {
                     .unwrap_or_default();
                 row.add(&pid, Alignment::Left);
             }
+            let disk = match &instance.disk_used {
+                Some(used) => format!(
+                    "{}/{}",
+                    used.to_value_in(&instance.disk_capacity),
+                    instance.disk_capacity.to_size()
+                ),
+                None => instance.disk_capacity.to_size(),
+            };
             row.add(instance_name, Alignment::Left)
                 .add(&instance.arch.to_string(), Alignment::Left)
                 .add(&instance.cpus.to_string(), Alignment::Right)
                 .add(&instance.mem.to_size(), Alignment::Right)
-                .add(
-                    &util::format_or_na(instance.disk_used.as_ref().map(|size| size.to_size())),
-                    Alignment::Right,
-                )
-                .add(&instance.disk_capacity.to_size(), Alignment::Right)
+                .add(&disk, Alignment::Right)
                 .add(
                     util::to_yes_no(instance_store.is_running(&instance)),
                     Alignment::Right,
@@ -108,6 +111,7 @@ mod tests {
                 user: UserName::from_str("cubic").unwrap(),
                 cpus: 1,
                 mem: DataSize::new(1024),
+                disk_used: Some(DataSize::new(512 * 1024)),
                 disk_capacity: DataSize::new(1048576),
                 ssh_port: 9000,
                 hostfwd: Vec::new(),
@@ -140,9 +144,9 @@ mod tests {
         assert_eq!(
             system.get_output(),
             "\
-Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
-test    amd64      1   1.0 KiB         n/a      1.0 MiB        no
-test2   amd64      5     0   B         n/a      4.9 KiB        no
+Name    Arch    CPUs   Memory         Disk   Running
+test    amd64      1   1024 B   512/1024 K        no
+test2   amd64      5      0 B       5000 B        no
 "
         );
     }
@@ -160,9 +164,9 @@ test2   amd64      5     0   B         n/a      4.9 KiB        no
         assert_eq!(
             system.get_output(),
             "\
-PID   Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
-      test    amd64      1   1.0 KiB         n/a      1.0 MiB        no
-      test2   amd64      5     0   B         n/a      4.9 KiB        no
+PID   Name    Arch    CPUs   Memory         Disk   Running
+      test    amd64      1   1024 B   512/1024 K        no
+      test2   amd64      5      0 B       5000 B        no
 "
         );
     }
@@ -183,9 +187,9 @@ PID   Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
         assert_eq!(
             system.get_output(),
             "\
-PID    Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
-       test    amd64      1   1.0 KiB         n/a      1.0 MiB        no
-1059   test2   amd64      5     0   B         n/a      4.9 KiB       yes
+PID    Name    Arch    CPUs   Memory         Disk   Running
+       test    amd64      1   1024 B   512/1024 K        no
+1059   test2   amd64      5      0 B       5000 B       yes
 "
         );
     }
@@ -202,7 +206,7 @@ PID    Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
 
         assert_eq!(
             system.get_output(),
-            "Name   Arch   CPUs   Memory   Disk Used   Disk Total   Running\n"
+            "Name   Arch   CPUs   Memory   Disk   Running\n"
         );
     }
 }

@@ -44,9 +44,9 @@ See What the Template Did
 .. code-block::
 
     $ cubic instances
-    Name    Arch    CPUs    Memory   Disk Used   Disk Total   Running
-    web-1   amd64      2   2.0 GiB   407.6 MiB    100.0 GiB        no
-    web-2   amd64      2   2.0 GiB   407.6 MiB    100.0 GiB        no
+    Name    Arch    CPUs   Memory      Disk   Running
+    web-1   amd64      2   2048 M   0/100 G        no
+    web-2   amd64      2   2048 M   0/100 G        no
 
 Both VM instances have two CPUs and two GiB of memory because the template said
 so. Without a template Cubic would have picked those values from the resources

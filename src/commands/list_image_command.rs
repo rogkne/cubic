@@ -10,15 +10,15 @@ use clap::Parser;
 /// Examples:
 ///
 ///   $ cubic images
-///   Name                Tags                       Arch         Size   Cached
-///   archlinux:rolling   stable, latest             amd64   530.8 MiB       no
-///   debian:12           bookworm                   amd64   428.7 MiB       no
-///   debian:13           trixie, stable, latest     amd64   413.6 MiB      yes
-///   fedora:43                                      amd64   556.3 MiB       no
-///   fedora:44           stable, latest             amd64   556.7 MiB       no
+///   Name                Tags                       Arch     Size   Cached
+///   archlinux:rolling   stable, latest             amd64   531 M       no
+///   debian:12           bookworm                   amd64   429 M       no
+///   debian:13           trixie, stable, latest     amd64   414 M      yes
+///   fedora:43                                      amd64   556 M       no
+///   fedora:44           stable, latest             amd64   557 M       no
 ///   [...]
-///   ubuntu:25.10        questing                   amd64   394.2 MiB       no
-///   ubuntu:26.04        resolute, stable, latest   amd64   407.8 MiB      yes
+///   ubuntu:25.10        questing                   amd64   394 M       no
+///   ubuntu:26.04        resolute, stable, latest   amd64   408 M      yes
 ///   [...]
 ///
 ///   Use the name of a row or swap its version for one of its tags, so

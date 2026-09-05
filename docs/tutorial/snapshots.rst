@@ -42,9 +42,9 @@ The name ``demo/clean`` is the snapshot ``clean`` of the VM instance ``demo``.
     Running:      no
     Arch:         amd64
     CPUs:         4
-    Memory:       2.0 GiB
-    Disk Used:    407.6 MiB
-    Disk Total:   100.0 GiB
+    Memory:       2048 M
+    Disk Used:    408 M
+    Disk Total:   100 G
     User:         alice
     Isolated:     no
     SSH Port:     40881

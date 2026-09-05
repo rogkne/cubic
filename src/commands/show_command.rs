@@ -16,9 +16,9 @@ use clap::Parser;
 ///   Running:      yes
 ///   Arch:         amd64
 ///   CPUs:         6
-///   Memory:       16.0 GiB
-///   Disk Used:    5.2 GiB
-///   Disk Total:   100.0 GiB
+///   Memory:       16 G
+///   Disk Used:    5325 M
+///   Disk Total:   100 G
 ///   User:         cubic
 ///   Isolated:     no
 ///   SSH Port:     54315
@@ -42,7 +42,7 @@ use clap::Parser;
 ///   Name:         ubuntu:26.04
 ///   Tags:         resolute, stable, latest
 ///   Architecture: amd64
-///   Size:         407.8 MiB
+///   Size:         408 M
 ///   Cached:       yes
 ///
 ///   Show all image information, adding checksum, file path and URLs

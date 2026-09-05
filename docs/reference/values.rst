@@ -61,9 +61,10 @@ binary, so ``1G`` is one gibibyte and not one gigabyte.
      - 1099511627776
 
 Lowercase letters and decimals are rejected, so use ``512M`` rather than
-``0.5G`` or ``512m``. Cubic prints sizes back as ``KiB``, ``MiB``, ``GiB`` and
-``TiB`` with one decimal, and stores them as plain bytes in the
-:ref:`instance file`.
+``0.5G`` or ``512m``. Cubic prints sizes back with a single letter ``B``, ``K``,
+``M``, ``G`` or ``T`` and no decimal, dropping to the next smaller unit when the
+value would fall below ten, so ``1G`` of memory prints as ``1024 M``. Sizes are
+stored as plain bytes in the :ref:`instance file`.
 
 Defaults of a New VM Instance
 -----------------------------

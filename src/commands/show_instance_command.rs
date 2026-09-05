@@ -136,8 +136,8 @@ mod tests {
 Running:    no
 Arch:       amd64
 CPUs:       1
-Memory:     1.0 KiB
-Disk Total: 1.0 MiB
+Memory:     1024 B
+Disk Total: 1024 K
 User:       myuser
 Isolated:   no
 SSH Port:   9000
@@ -215,8 +215,8 @@ Forward:    127.0.0.1:4000:40/tcp
 Running:      no
 Arch:         arm64
 CPUs:         2
-Memory:       1   B
-Disk Total:   1   B
+Memory:       1 B
+Disk Total:   1 B
 User:         john
 Isolated:     yes
 SSH Port:     8000

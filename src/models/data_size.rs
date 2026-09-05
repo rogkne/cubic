@@ -1,6 +1,8 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
+const UNITS: [&str; 5] = ["B", "K", "M", "G", "T"];
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DataSize {
     bytes: usize,
@@ -16,13 +18,34 @@ impl DataSize {
     }
 
     pub fn to_size(&self) -> String {
-        match self.bytes.checked_ilog(1024) {
-            Some(1) => format!("{:.1} KiB", self.bytes as f64 / 1024_f64.powf(1_f64)),
-            Some(2) => format!("{:.1} MiB", self.bytes as f64 / 1024_f64.powf(2_f64)),
-            Some(3) => format!("{:.1} GiB", self.bytes as f64 / 1024_f64.powf(3_f64)),
-            Some(4) => format!("{:.1} TiB", self.bytes as f64 / 1024_f64.powf(4_f64)),
-            _ => format!("{}   B", self.bytes as f64),
+        let power = self.get_power();
+        format!("{} {}", self.to_value_at(power), UNITS[power])
+    }
+
+    // Value rounded to the unit another size prints in, so a used size and a
+    // total size can share one unit and read as a fraction.
+    pub fn to_value_in(&self, total: &DataSize) -> u64 {
+        self.to_value_at(total.get_power())
+    }
+
+    fn to_value_at(&self, power: usize) -> u64 {
+        (self.bytes as f64 / 1024_f64.powi(power as i32)).round() as u64
+    }
+
+    // The unit index this size prints in.
+    fn get_power(&self) -> usize {
+        let bytes = self.bytes as f64;
+        let mut power = (1..UNITS.len())
+            .rev()
+            .find(|power| bytes / 1024_f64.powi(*power as i32) >= 10_f64)
+            .unwrap_or(0);
+
+        // Keep the number to four digits, so 10000 B shows as 10 K.
+        if power + 1 < UNITS.len() && bytes / 1024_f64.powi(power as i32) >= 10_000_f64 {
+            power += 1;
         }
+
+        power
     }
 }
 
@@ -82,28 +105,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_byte_to_size() {
-        assert_eq!(&DataSize::new(1).to_size(), "1   B")
+    fn test_zero_to_size() {
+        assert_eq!(&DataSize::new(0).to_size(), "0 B")
     }
 
     #[test]
-    fn test_kilobyte_to_size() {
-        assert_eq!(&DataSize::new(1024).to_size(), "1.0 KiB")
+    fn test_drops_to_a_lower_unit_below_ten() {
+        assert_eq!(&DataSize::new(1024_usize.pow(2)).to_size(), "1024 K")
     }
 
     #[test]
-    fn test_megabyte_to_size() {
-        assert_eq!(&DataSize::new(1024_usize.pow(2)).to_size(), "1.0 MiB")
+    fn test_keeps_the_unit_from_ten() {
+        assert_eq!(&DataSize::new(10 * 1024_usize.pow(2)).to_size(), "10 M")
     }
 
     #[test]
-    fn test_gigabyte_to_size() {
-        assert_eq!(&DataSize::new(1024_usize.pow(3)).to_size(), "1.0 GiB")
+    fn test_rounds_to_the_nearest_whole() {
+        assert_eq!(
+            &DataSize::new(107 * 1024_usize.pow(3) / 10).to_size(),
+            "11 G"
+        )
     }
 
     #[test]
-    fn test_terabyte_to_size() {
-        assert_eq!(&DataSize::new(1024_usize.pow(4)).to_size(), "1.0 TiB")
+    fn test_caps_the_number_at_four_digits() {
+        assert_eq!(&DataSize::new(9999).to_size(), "9999 B");
+        assert_eq!(&DataSize::new(10_000).to_size(), "10 K");
+    }
+
+    #[test]
+    fn test_scales_the_value_to_another_unit() {
+        let total = DataSize::new(100 * 1024_usize.pow(3));
+        assert_eq!(DataSize::new(1024_usize.pow(3)).to_value_in(&total), 1);
+        assert_eq!(
+            DataSize::new(44 * 1024_usize.pow(3)).to_value_in(&total),
+            44
+        );
     }
 
     #[test]
