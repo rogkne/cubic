@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 /// The disk size of a new VM instance, 100 GiB.
 pub const DEFAULT_DISK_SIZE: DataSize = DataSize::new(100 * 1024_usize.pow(3));
 
-/// Create VM instances
+/// Create a VM instance
 ///
 /// This command only creates the VM instance. Use cubic start <instance> to power
 /// it on and cubic ssh <instance> to connect to it.
@@ -41,7 +41,7 @@ pub const DEFAULT_DISK_SIZE: DataSize = DataSize::new(100 * 1024_usize.pow(3));
 ///   $ cubic create example5 -e "sudo apt install -y vim" -i ubuntu
 ///
 ///   Create a VM instance without network access:
-///   $ cubic create example6 --isolate ubuntu
+///   $ cubic create example6 --isolate -i ubuntu
 ///
 ///   Create a VM instance from a template (command line arguments override the template):
 ///   $ cubic create example7 --template ./my-template.toml
@@ -64,7 +64,7 @@ pub struct CreateCommand {
     /// VM image name (e.g. 'debian:trixie', 'debian:latest' or 'debian')
     #[clap(short, long)]
     image: Option<ImageName>,
-    /// Username (default: 'cubic')
+    /// Username of the guest account (default: your user name on the host)
     #[clap(short, long)]
     user: Option<UserName>,
     /// Number of vCPUs for the VM instance (default: derived from host resources)

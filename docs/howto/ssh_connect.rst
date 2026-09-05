@@ -1,53 +1,80 @@
 .. _ssh connect:
 
-Connect with the Host SSH Client
-=================================
+Use the Host SSH Client
+=======================
 
-This guide shows how to connect to a Cubic virtual machine using the host's
-native SSH client instead of ``cubic ssh``.
+``cubic ssh`` is the short way into a guest. The SSH client of your host works
+just as well, which is what you want for an editor, an agent or a tool that
+speaks SSH on its own.
 
-Add Port Forwarding
--------------------
+Use the Key Cubic Made
+----------------------
 
-Expose guest port 22 on a host port so the SSH client can reach the VM:
-
-.. code-block::
-
-    $ cubic modify <instance> --port 2222:22
-
-Changes take effect on the next restart.
-
-Restart the Virtual Machine
-----------------------------
+Every VM instance already has its own key and a forwarded SSH port.
+``cubic show --all`` prints the command that uses both:
 
 .. code-block::
 
-    $ cubic restart <instance>
+    $ cubic show --all demo
+    [...]
+    SSH Port:     40881
+    [...]
+    SSH Key:      ~/.local/share/cubic/machines/demo/ssh_client_key
+    SSH:          ssh -i ~/.local/share/cubic/machines/demo/ssh_client_key -p 40881 alice@localhost
 
-Add Your SSH Public Key
------------------------
-
-Connect to the VM with ``cubic ssh`` and append your public key to the
-authorized keys file:
+Copy that line and you are in:
 
 .. code-block::
 
-    $ cubic ssh <instance>
-    $ mkdir -p ~/.ssh && echo '<your-public-key>' >> ~/.ssh/authorized_keys
+    $ ssh -i ~/.local/share/cubic/machines/demo/ssh_client_key -p 40881 alice@localhost
+    alice@demo:~$
 
-Your public key is typically stored in ``~/.ssh/id_ed25519.pub`` or
-``~/.ssh/id_rsa.pub`` on the host.
+The VM instance has to be running, because the host client does not start it.
+Use ``cubic start demo`` first.
 
-Connect with SSH
+Use Your Own Key
 ----------------
 
-Look up the VM username with ``cubic show``, then connect:
+Add your own public key to the guest when you would rather use the key of your
+agent, or when a tool cannot be told which key file to take:
 
 .. code-block::
 
-    $ cubic show <instance>
-    ...
-    User:        <username>
-    ...
+    $ cubic ssh demo
+    alice@demo:~$ mkdir -p ~/.ssh && echo '<your-public-key>' >> ~/.ssh/authorized_keys
+    alice@demo:~$ exit
 
-    $ ssh -p 2222 <username>@localhost
+Your public key is usually ``~/.ssh/id_ed25519.pub`` on the host. Both keys work
+side by side afterwards.
+
+Give the VM Instance a Fixed Port
+---------------------------------
+
+Cubic picks a free SSH port for each VM instance, and it can pick a new one when
+the old port is taken at the next start. Add a forward of your own for an entry
+in ``~/.ssh/config`` that should keep working:
+
+.. code-block::
+
+    $ cubic modify demo --port 2222:22
+
+A running VM instance opens the host port right away, so no restart is needed.
+The entry then stays valid:
+
+.. code-block::
+
+    Host demo
+        HostName localhost
+        Port 2222
+        User alice
+        IdentityFile ~/.local/share/cubic/machines/demo/ssh_client_key
+
+With that in place ``ssh demo``, ``scp`` and ``rsync`` all reach the guest.
+
+Related
+-------
+
+* :ref:`copy files` with ``cubic scp`` instead
+* :ref:`port forward` to reach other services in the guest
+* :ref:`file locations` of the SSH key of a VM instance
+* :ref:`console login` reaches a guest whose SSH server stopped working

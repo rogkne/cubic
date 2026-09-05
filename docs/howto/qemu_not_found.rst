@@ -3,7 +3,7 @@
 QEMU or Firmware Not Found
 ==========================
 
-Cubic stops with the following error when it cannot start a virtual machine:
+Cubic stops with the following error when it cannot start a VM instance:
 
 .. code-block::
 
@@ -18,7 +18,7 @@ it needs the UEFI firmware that boots the guest. Either one can be missing.
 Find Out Which Part Is Missing
 ------------------------------
 
-Start the machine again with ``--verbose``:
+Start the VM instance again with ``--verbose``:
 
 .. code-block::
 
@@ -82,6 +82,10 @@ distribution. List the descriptors and remove the stale copies:
 
     $ ls ~/.config/qemu/firmware /etc/qemu/firmware /usr/share/qemu/firmware
 
+On macOS the descriptors live in ``<prefix>/share/qemu/firmware`` of the
+Homebrew or MacPorts install, and on Windows in the ``share\qemu\firmware``
+folder of the QEMU install.
+
 A descriptor is only useful when the firmware image it points at is present on
 disk. Cubic skips every descriptor whose image is missing, which is what
 happens when the QEMU package is installed without the matching firmware
@@ -94,9 +98,14 @@ When the descriptors are unusable you can name the firmware image directly:
 
 .. code-block::
 
+    # Linux
     $ CUBIC_QEMU_FW_AMD64=/usr/share/OVMF/OVMF_CODE.fd cubic start <instance>
+    # macOS
+    $ CUBIC_QEMU_FW_AMD64=/opt/homebrew/share/qemu/edk2-x86_64-code.fd cubic start <instance>
+    # Windows
+    > set CUBIC_QEMU_FW_AMD64=C:\Program Files\qemu\share\edk2-x86_64-code.fd
 
-Use ``CUBIC_QEMU_FW_ARM64`` for arm64 machines.
+Use ``CUBIC_QEMU_FW_ARM64`` for an arm64 VM instance.
 Cubic uses these paths as they are and never checks that the file exists.
 A typo therefore replaces this error with a QEMU startup failure later on.
 Verify the path before you set the variable:
@@ -107,3 +116,9 @@ Verify the path before you set the variable:
 
 The variables are described with the rest of the settings in
 :ref:`qemu detection`.
+
+Related
+-------
+
+* :ref:`Install Cubic` lists the QEMU packages per platform
+* :ref:`qemu detection` explains where Cubic looks and what it reads

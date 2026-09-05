@@ -8,7 +8,7 @@ use crate::view::{Console, Spinner};
 use clap::Parser;
 use std::sync::{Arc, Mutex};
 
-/// Connect to VM instances
+/// Connect to a VM instance
 ///
 /// Examples:
 ///

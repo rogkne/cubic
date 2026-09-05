@@ -7,7 +7,7 @@ use crate::util;
 use crate::view::Console;
 use clap::Parser;
 
-/// Execute commands on VM instances
+/// Execute a command in a VM instance
 ///
 /// Examples:
 ///

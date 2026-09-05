@@ -5,7 +5,7 @@ use crate::models::{DataSize, PortForward};
 use crate::view::Console;
 use clap::{ArgAction, Parser};
 
-/// Modify VM instances
+/// Modify a VM instance
 ///
 /// Use this command to change the settings of an existing VM instance (CPU, memory,
 /// disk, etc.). Port forwarding rules (--port/--rm-port) take effect immediately if

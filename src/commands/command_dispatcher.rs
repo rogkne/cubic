@@ -78,6 +78,9 @@ Examples:
   $ cubic scp <path/to/host/file> <instance>:<path/to/guest/file>
   See `cubic scp --help` for more examples
 
+  Every command can be shortened while the short form stays unique:
+  $ cubic in
+
 For more information, visit: https://cubic-vm.org/
 The source code is located at: https://github.com/cubic-vm/cubic";
 

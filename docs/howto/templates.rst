@@ -1,77 +1,68 @@
 .. _templates:
 
-Create VMs from a Template
-==========================
+Create from a Template
+======================
 
-A template is a TOML file with default values for a new virtual machine. It lets
-you recreate the same machine again and again without retyping a long command
-line, and it is easy to share with a friend or a customer.
+A template is a TOML file with default values for a new VM instance, so the same
+setup can be created again and again without retyping a long command line.
+:ref:`first template` walks through a small one step by step.
 
 Write a Template
 ----------------
 
-A template is a plain TOML file. Every field except ``version`` is optional and
-falls back to the Cubic default when it is left out:
+A template is a plain TOML file. Only ``version`` is mandatory, every other
+field falls back to the Cubic default:
 
 .. code-block::
 
-    version = 1              # mandatory
+    version = 1
 
-    image = "debian"         # optional
-    user = "john"            # optional
-    cpus = 4                 # optional
-    memory = "4G"            # optional
-    disk = "100G"            # optional
-    isolate = false          # optional
+    image = "debian"
+    cpus = 4
+    memory = "4G"
 
-    ports = [                # optional
-      "8000:80",             # forward guest HTTP port to host TCP port 8000
-      "5353:53/udp"          # forward guest DNS port to host UDP port 5353
-    ]
+    ports = ["8000:80"]
 
-    run = [                  # optional, commands run once on the first boot
-      "sudo apt update",
-      "sudo apt full-upgrade -y",
-      "sudo apt install vim"
-    ]
+    run = ["apt install -y vim"]
 
 The fields use the same form as the command line, for example ``4G`` for memory
-and ``8000:80`` for a forwarded port.
+and ``8000:80`` for a forwarded port. The ``run`` list holds shell commands the
+guest runs once on its first boot. :ref:`template file` lists every field and
+:ref:`values` the units and defaults behind them.
 
-The ``run`` list holds shell commands that run once inside the guest on the first
-boot, so a template can install software and start services for you.
-
-Create a VM from a Template
----------------------------
+Create a VM Instance from a Template
+------------------------------------
 
 Pass the template to ``cubic create`` or ``cubic run`` with ``--template``:
 
 .. code-block::
 
-    $ cubic create my-instance --template ./my-template.toml
+    $ cubic create my-instance --template ./template.toml
 
-Because the template has no instance name, you can create as many machines from it
-as you like:
-
-.. code-block::
-
-    $ cubic create web-1 --template ./my-template.toml
-    $ cubic create web-2 --template ./my-template.toml
+A template carries no instance name, so one file serves as many VM instances as
+you like.
 
 Override Template Values
 ------------------------
 
-Every command line argument overrides the matching value in the template. This is
-handy to reuse a template but change one detail, for example the image or the
+Every command line argument overrides the matching value in the template, which
+lets you reuse one file and change a single detail, such as the image or the
 number of CPUs:
 
 .. code-block::
 
-    $ cubic create my-instance --template ./my-template.toml --image ubuntu --cpus 8
+    $ cubic create my-instance --template ./template.toml --image ubuntu --cpus 8
 
-A template that sets ``isolate = true`` keeps the machine off the network. Use
-``--no-isolate`` to give a single machine network access anyway:
+A template that sets ``isolate = true`` keeps the VM instance off the network.
+``--no-isolate`` gives a single VM instance network access anyway:
 
 .. code-block::
 
-    $ cubic create my-instance --template ./my-template.toml --no-isolate
+    $ cubic create my-instance --template ./template.toml --no-isolate
+
+Related
+-------
+
+* :ref:`template file` lists every field of a template
+* :ref:`resources` after the VM instance was created
+* :ref:`port forward` to reach a service from the host

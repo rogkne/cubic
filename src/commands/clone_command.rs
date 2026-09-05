@@ -6,7 +6,7 @@ use crate::view::{Console, Spinner};
 use clap::Parser;
 use std::sync::{Arc, Mutex};
 
-/// Clone VM instances
+/// Clone a VM instance
 ///
 /// Examples:
 ///
