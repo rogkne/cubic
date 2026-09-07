@@ -3,7 +3,6 @@ use crate::commands::{self, Command};
 use crate::error::{Error, Result};
 use crate::models::{TargetInstancePath, TargetPath};
 use crate::ssh::SshClient;
-use crate::util;
 use crate::view::Console;
 use clap::Parser;
 
@@ -94,7 +93,7 @@ impl Command for ScpCommand {
 
         let mut ssh = SshClient::new(context);
         ssh.set_private_keys(env.get_home_ssh_private_key_paths(context.get_system()));
-        util::AsyncCaller::new().call(ssh.copy(
+        context.call_async(ssh.copy(
             console,
             &from,
             from_key.as_deref(),

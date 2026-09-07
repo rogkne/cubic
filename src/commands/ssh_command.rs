@@ -3,7 +3,6 @@ use crate::commands::{self, Command};
 use crate::error::Result;
 use crate::models::Target;
 use crate::ssh::SshClient;
-use crate::util;
 use crate::view::{Console, Spinner};
 use clap::Parser;
 use std::sync::{Arc, Mutex};
@@ -61,8 +60,7 @@ impl Command for SshCommand {
         let mut ssh = SshClient::new(context);
         ssh.set_private_keys(env.get_home_ssh_private_key_paths(context.get_system()));
         ssh.set_env_vars(self.env_args.env_vars.clone());
-        let async_caller = util::AsyncCaller::new();
-        let channel = async_caller.call(ssh.open_channel(
+        let channel = context.call_async(ssh.open_channel(
             console,
             &instance.name,
             &client_key,
@@ -70,7 +68,7 @@ impl Command for SshCommand {
             ssh_port,
         ))?;
         console.stop();
-        async_caller.call(ssh.shell(console, &instance.name, channel))?;
+        context.call_async(ssh.shell(console, &instance.name, channel))?;
         Ok(())
     }
 }

@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
 use crate::models::HashAlg;
 use crate::platform::System;
-use crate::util;
 use crate::view::TransferView;
 use crate::web::Hasher;
 use reqwest::Client;
@@ -56,7 +55,6 @@ impl io::Write for ProgressWriter {
 
 pub struct WebClient {
     client: Client,
-    async_caller: util::AsyncCaller,
 }
 
 impl WebClient {
@@ -67,26 +65,23 @@ impl WebClient {
                 .timeout(Duration::from_secs(REQUEST_TIMEOUT_SEC))
                 .build()
                 .map_err(Error::from)?,
-            async_caller: util::AsyncCaller::new(),
         })
     }
 
-    pub fn get_file_size(&mut self, url: &str) -> Result<Option<u64>> {
-        self.async_caller.call(async {
-            Ok(self
-                .client
-                .head(url)
-                .send()
-                .await
-                .map_err(Error::from)?
-                .headers()
-                .get("Content-Length")
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.parse().ok()))
-        })
+    pub async fn get_file_size(&mut self, url: &str) -> Result<Option<u64>> {
+        Ok(self
+            .client
+            .head(url)
+            .send()
+            .await
+            .map_err(Error::from)?
+            .headers()
+            .get("Content-Length")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse().ok()))
     }
 
-    pub fn download_file(
+    pub async fn download_file(
         &self,
         system: &dyn System,
         url: &str,
@@ -107,21 +102,17 @@ impl WebClient {
             return Ok(String::new());
         }
 
-        let mut writer = self.async_caller.call(async {
-            let mut resp = self.client.get(url).send().await.map_err(Error::from)?;
+        let mut resp = self.client.get(url).send().await.map_err(Error::from)?;
 
-            let mut writer = ProgressWriter::new(
-                system.create_file(&temp_file)?,
-                resp.content_length(),
-                view,
-                hash_alg,
-            );
-            while let Some(chunk) = resp.chunk().await.map_err(Error::from)? {
-                writer.write_all(&chunk).map_err(Error::from)?;
-            }
-
-            Ok::<_, Error>(writer)
-        })?;
+        let mut writer = ProgressWriter::new(
+            system.create_file(&temp_file)?,
+            resp.content_length(),
+            view,
+            hash_alg,
+        );
+        while let Some(chunk) = resp.chunk().await.map_err(Error::from)? {
+            writer.write_all(&chunk).map_err(Error::from)?;
+        }
 
         // The buffered writer drops its tail without this flush
         writer.flush().map_err(Error::from)?;
@@ -130,16 +121,14 @@ impl WebClient {
         Ok(writer.hasher.finalize())
     }
 
-    pub fn download_content(&mut self, url: &str) -> Result<String> {
-        self.async_caller.call(async {
-            self.client
-                .get(url)
-                .send()
-                .await
-                .map_err(Error::from)?
-                .text()
-                .await
-                .map_err(Error::from)
-        })
+    pub async fn download_content(&mut self, url: &str) -> Result<String> {
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(Error::from)?
+            .text()
+            .await
+            .map_err(Error::from)
     }
 }

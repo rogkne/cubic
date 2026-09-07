@@ -41,7 +41,7 @@ impl<'a> ImageFactory<'a> {
         arches
     }
 
-    fn get_images_from_provider_name_arch(
+    async fn get_images_from_provider_name_arch(
         console: &mut Console<'_>,
         web: &mut WebClient,
         image_provider: &dyn image::ImageProvider,
@@ -56,7 +56,7 @@ impl<'a> ImageFactory<'a> {
         console.debug(&format!(
             "Fetching image directory listing '{image_dir_url}'"
         ));
-        let image_content = match web.download_content(&image_dir_url) {
+        let image_content = match web.download_content(&image_dir_url).await {
             Ok(content) => content,
             Err(e) => {
                 console.debug(&format!(
@@ -78,6 +78,7 @@ impl<'a> ImageFactory<'a> {
         if let Some(image_file) = image_file {
             let image_url = format!("{image_dir_url}{image_file}");
             web.get_file_size(&image_url)
+                .await
                 .ok()
                 .and_then(|size| size)
                 .map(|size| Image {
@@ -131,48 +132,49 @@ impl<'a> ImageFactory<'a> {
         images
     }
 
-    fn get_images_from_provider(
+    async fn get_images_from_provider(
         console: &mut Console<'_>,
         web: &mut WebClient,
         image_provider: &dyn image::ImageProvider,
         filter: Option<ImageName>,
     ) -> Vec<Image> {
-        web.download_content(image_provider.get_base_url())
-            .map(|content| {
-                image_provider
-                    .find_image_names(&content)
-                    .into_iter()
-                    .flat_map(|name| {
-                        Self::filter_arch(filter.clone())
-                            .into_iter()
-                            .flat_map(|arch| {
-                                Self::get_images_from_provider_name_arch(
-                                    console,
-                                    web,
-                                    image_provider,
-                                    &name,
-                                    arch,
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
+        let Ok(content) = web.download_content(image_provider.get_base_url()).await else {
+            return Vec::new();
+        };
+
+        let mut images = Vec::new();
+        for name in image_provider.find_image_names(&content) {
+            for arch in Self::filter_arch(filter.clone()) {
+                if let Some(image) = Self::get_images_from_provider_name_arch(
+                    console,
+                    web,
+                    image_provider,
+                    &name,
+                    arch,
+                )
+                .await
+                {
+                    images.push(image);
+                }
+            }
+        }
+        images
     }
 
-    fn get_images(
+    async fn get_images(
         console: &mut Console<'_>,
         web: &mut WebClient,
         filter: Option<ImageName>,
     ) -> Vec<Image> {
-        IMAGE_PROVIDERS
-            .iter()
-            .filter(|p| filter.is_none() || filter.as_ref().unwrap().get_distro() == p.get_distro())
-            .flat_map(|provider| {
-                Self::get_images_from_provider(console, web, *provider, filter.clone())
-            })
-            .collect()
+        let mut images = Vec::new();
+        for provider in IMAGE_PROVIDERS {
+            if filter.is_none() || filter.as_ref().unwrap().get_distro() == provider.get_distro() {
+                images.extend(
+                    Self::get_images_from_provider(console, web, *provider, filter.clone()).await,
+                );
+            }
+        }
+        images
     }
 
     fn find_matching_image(images: &[Image], filter: &ImageName) -> Option<Image> {
@@ -186,7 +188,7 @@ impl<'a> ImageFactory<'a> {
             .cloned()
     }
 
-    fn read_images(
+    async fn read_images(
         &self,
         console: &mut Console<'_>,
         filter: Option<ImageName>,
@@ -204,7 +206,7 @@ impl<'a> ImageFactory<'a> {
         } else {
             // Fetch image info
             console.debug("Image cache missing or stale, fetching image list from providers");
-            let images = Self::get_images(console, &mut WebClient::new()?, filter.clone());
+            let images = Self::get_images(console, &mut WebClient::new()?, filter.clone()).await;
 
             // Return cache if fetching failed
             if images.is_empty()
@@ -232,12 +234,13 @@ impl<'a> ImageFactory<'a> {
         })
     }
 
-    pub fn get_all_images(&self, console: &mut Console<'_>) -> Result<Vec<Image>> {
-        self.read_images(console, None)
+    pub async fn get_all_images(&self, console: &mut Console<'_>) -> Result<Vec<Image>> {
+        self.read_images(console, None).await
     }
 
-    pub fn find_image(&self, console: &mut Console<'_>, name: &ImageName) -> Result<Image> {
+    pub async fn find_image(&self, console: &mut Console<'_>, name: &ImageName) -> Result<Image> {
         self.read_images(console, Some(name.clone()))
+            .await
             .and_then(|images| {
                 images
                     .into_iter()

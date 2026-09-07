@@ -6,7 +6,7 @@ use crate::view::{Console, Spinner};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-pub fn fetch_image_list(
+pub async fn fetch_image_list(
     console: &mut Console<'_>,
     system: &dyn System,
     env: &Environment,
@@ -16,12 +16,13 @@ pub fn fetch_image_list(
     ))));
     let images: Vec<Image> = ImageFactory::new(system, env)
         .get_all_images(console)
+        .await
         .unwrap_or_default();
     console.stop();
     images
 }
 
-pub fn fetch_image_info(
+pub async fn fetch_image_info(
     console: &mut Console<'_>,
     system: &dyn System,
     env: &Environment,
@@ -32,12 +33,14 @@ pub fn fetch_image_info(
         image.get_distro(),
         image.get_name()
     )))));
-    let image = ImageFactory::new(system, env).find_image(console, image);
+    let image = ImageFactory::new(system, env)
+        .find_image(console, image)
+        .await;
     console.stop();
     image
 }
 
-pub fn fetch_image(
+pub async fn fetch_image(
     console: &mut Console<'_>,
     system: &dyn System,
     env: &Environment,
@@ -45,12 +48,14 @@ pub fn fetch_image(
 ) -> Result<()> {
     if !ImageStore::new().exists(system, env, image) {
         system.create_writable_dir(Path::new(&env.get_image_dir()))?;
-        ImageFetcher::new().fetch(
-            console,
-            system,
-            image,
-            Path::new(&env.get_image_file(&image.to_file_name())),
-        )?;
+        ImageFetcher::new()
+            .fetch(
+                console,
+                system,
+                image,
+                Path::new(&env.get_image_file(&image.to_file_name())),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -62,8 +67,8 @@ mod tests {
     use crate::platform::SystemMock;
     use std::str::FromStr;
 
-    #[test]
-    fn test_fetch_image_skips_cached_image() {
+    #[tokio::test]
+    async fn test_fetch_image_skips_cached_image() {
         let system = SystemMock::new().add_file("images/debian_bookworm_amd64", b"");
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -85,6 +90,6 @@ mod tests {
 
         // A cached image must return without touching the image directory
         // or the network.
-        fetch_image(console, &system, &env, &image).unwrap();
+        fetch_image(console, &system, &env, &image).await.unwrap();
     }
 }

@@ -17,10 +17,14 @@ impl ImageFetcher {
         ImageFetcher
     }
 
-    pub fn fetch_checksum(&self, client: &mut WebClient, image: &Image) -> Result<Option<String>> {
+    pub async fn fetch_checksum(
+        &self,
+        client: &mut WebClient,
+        image: &Image,
+    ) -> Result<Option<String>> {
         if let Some(pos) = image.image_url.rfind("/") {
             let file_name = &image.image_url[pos + 1..image.image_url.len()];
-            let content = client.download_content(&image.checksum_url)?;
+            let content = client.download_content(&image.checksum_url).await?;
             for line in content.lines() {
                 let line = line
                     .replace("*", "")
@@ -48,7 +52,7 @@ impl ImageFetcher {
         Ok(None)
     }
 
-    pub fn fetch(
+    pub async fn fetch(
         &self,
         console: &mut Console<'_>,
         system: &dyn System,
@@ -62,8 +66,9 @@ impl ImageFetcher {
             &image.to_name()
         ))));
         console.play(view.clone());
-        let checksum =
-            client.download_file(system, &image.image_url, target_file, view, image.hash_alg)?;
+        let checksum = client
+            .download_file(system, &image.image_url, target_file, view, image.hash_alg)
+            .await?;
         console.stop();
 
         // Verify checksum
@@ -73,7 +78,7 @@ impl ImageFetcher {
         )))));
         let mut valid_checksum = false;
 
-        if let Ok(Some(hashsum)) = self.fetch_checksum(&mut client, image) {
+        if let Ok(Some(hashsum)) = self.fetch_checksum(&mut client, image).await {
             valid_checksum = checksum == hashsum;
         }
 
