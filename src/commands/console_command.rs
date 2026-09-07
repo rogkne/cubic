@@ -7,6 +7,7 @@ use crate::util;
 use crate::view::Console;
 use clap::Parser;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
@@ -36,7 +37,7 @@ pub struct ConsoleCommand {
 }
 
 impl Command for ConsoleCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         commands::StartCommand {
             qemu_args: None,
             accel: self.accel,

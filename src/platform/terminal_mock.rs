@@ -35,21 +35,21 @@ impl TerminalMock {
 
 impl SystemMock {
     pub fn push_input(&self, line: &str) {
-        self.terminal.borrow_mut().push_input(line);
+        self.terminal.lock().unwrap().push_input(line);
     }
 
     pub fn get_output(&self) -> String {
-        self.terminal.borrow().get_output()
+        self.terminal.lock().unwrap().get_output()
     }
 }
 
 impl Terminal for SystemMock {
     fn print(&self, _stream: Stream, msg: &str) {
-        self.terminal.borrow_mut().print(msg);
+        self.terminal.lock().unwrap().print(msg);
     }
 
     fn println(&self, _stream: Stream, msg: &str) {
-        self.terminal.borrow_mut().println(msg);
+        self.terminal.lock().unwrap().println(msg);
     }
 
     fn flush(&self, _stream: Stream) {}
@@ -60,11 +60,11 @@ impl Terminal for SystemMock {
     }
 
     fn read_input(&self) -> String {
-        self.terminal.borrow_mut().pop_input().trim().to_string()
+        self.terminal.lock().unwrap().pop_input().trim().to_string()
     }
 
     fn read_secret(&self) -> std::result::Result<String, ()> {
-        Ok(self.terminal.borrow_mut().pop_input())
+        Ok(self.terminal.lock().unwrap().pop_input())
     }
 
     fn raw_mode(&self) {}

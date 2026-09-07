@@ -17,7 +17,7 @@ mod web;
 use crate::commands::CommandDispatcher;
 use crate::platform::{OsSystem, System};
 use clap::Parser;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ! {
@@ -31,10 +31,10 @@ async fn main() -> ! {
         default_hook(info);
     }));
 
-    let system: Rc<dyn System> = Rc::new(OsSystem::new());
-    let console = &mut view::Console::new(system.as_ref());
+    let system: Arc<dyn System> = Arc::new(OsSystem::new());
+    let console = &view::Console::new(Arc::clone(&system));
     let result = CommandDispatcher::parse()
-        .dispatch(Rc::clone(&system), console)
+        .dispatch(Arc::clone(&system), console)
         .await;
     if let Err(error) = &result {
         console.error(&error.to_string());

@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::models::InstanceName;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 /// Rename a VM instance
 ///
@@ -22,7 +23,7 @@ pub struct RenameCommand {
 }
 
 impl Command for RenameCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         instance_store.rename(
@@ -39,8 +40,8 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instances: Vec<Instance>) -> commands::Context {
         let env = Environment::new(
@@ -49,7 +50,7 @@ mod tests {
             String::new(),
         );
         commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(instances)),
         )
@@ -58,7 +59,7 @@ mod tests {
     #[tokio::test]
     async fn test_rename_rejects_unknown_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(Vec::new());
 
         let result = RenameCommand {
@@ -77,7 +78,7 @@ mod tests {
     #[tokio::test]
     async fn test_rename_delegates_to_store() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(vec![Instance {
             name: "test".to_string(),
             ..Instance::default()

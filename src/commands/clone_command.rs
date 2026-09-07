@@ -23,7 +23,7 @@ pub struct CloneCommand {
 }
 
 impl Command for CloneCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         // Verify that the target name is available
@@ -78,8 +78,8 @@ mod tests {
     use crate::models::UserName;
     use crate::platform::SystemMock;
     use std::path::PathBuf;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instances: Vec<Instance>) -> Context {
         let env = Environment::new(
@@ -88,7 +88,7 @@ mod tests {
             String::new(),
         );
         Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(instances)),
         )
@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test_clone_rejects_existing_target_name() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(vec![
             Instance {
                 name: "test".to_string(),
@@ -125,14 +125,14 @@ mod tests {
     #[tokio::test]
     async fn test_clone_rejects_running_source() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let env = Environment::new(
             UserName::from_str("cubic").unwrap(),
             String::new(),
             String::new(),
         );
         let context = Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new_with_running(
                 vec![Instance {
@@ -174,7 +174,7 @@ mod tests {
             .add_file(&source_image, b"qcow2 image")
             .add_command_output(&format!("qemu-img resize {target_image} 0"), b"");
         let console_system = SystemMock::new();
-        let console = &mut Console::new(&console_system);
+        let console = &Console::new(Arc::new(console_system));
         let store = InstanceStoreMock::new(vec![Instance {
             name: "test".to_string(),
             ssh_host_key: Some("ssh-ed25519 AAAA".to_string()),
@@ -182,7 +182,7 @@ mod tests {
         }]);
         let stored = Arc::clone(&store.stored);
         let context = Context::new(
-            Rc::new(system),
+            Arc::new(system),
             Environment::new(
                 UserName::from_str("cubic").unwrap(),
                 String::new(),
@@ -207,7 +207,7 @@ mod tests {
     #[tokio::test]
     async fn test_clone_rejects_unknown_source() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(Vec::new());
 
         let result = CloneCommand {

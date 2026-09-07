@@ -4,6 +4,7 @@ use crate::error::{Error, Result};
 use crate::models::SnapshotName;
 use crate::view::{ConfirmDialog, Console};
 use clap::Parser;
+use std::sync::Arc;
 
 /// Restore a VM instance from a snapshot
 ///
@@ -36,7 +37,7 @@ pub struct RestoreCommand {
 }
 
 impl Command for RestoreCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
         let snapshot_name = self.snapshot.as_str();
@@ -79,7 +80,6 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, Snapshot, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
     use std::sync::{Arc, Mutex};
 
@@ -99,7 +99,7 @@ mod tests {
             String::new(),
         );
         (
-            commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(store)),
+            commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(store)),
             snapshots,
         )
     }
@@ -120,7 +120,7 @@ mod tests {
     #[tokio::test]
     async fn test_restore_snapshot() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, snapshots) = build_context(vec![build_instance(vec!["clean"])]);
 
         build_command("test/clean", true)
@@ -135,7 +135,7 @@ mod tests {
     async fn test_a_declined_confirmation_leaves_the_disk_alone() {
         let system = SystemMock::new();
         system.push_input("n");
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, snapshots) = build_context(vec![build_instance(vec!["clean"])]);
 
         build_command("test/clean", false)
@@ -149,7 +149,7 @@ mod tests {
     #[tokio::test]
     async fn test_reject_an_unknown_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, _) = build_context(Vec::new());
 
         assert!(matches!(
@@ -161,7 +161,7 @@ mod tests {
     #[tokio::test]
     async fn test_reject_an_unknown_snapshot() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, _) = build_context(vec![build_instance(vec!["deps"])]);
 
         assert!(matches!(

@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::models::{DataSize, PortForward};
 use crate::view::Console;
 use clap::{ArgAction, Parser};
+use std::sync::Arc;
 
 /// Modify a VM instance
 ///
@@ -67,7 +68,7 @@ pub struct ModifyCommand {
 }
 
 impl Command for ModifyCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let mut instance =
             LoadInstanceAction::new().run(context, console, self.instance.value.as_str())?;
@@ -120,9 +121,9 @@ mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
-    use crate::platform::SystemMock;
-    use std::rc::Rc;
+    use crate::platform::{System, SystemMock};
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instance_store: InstanceStoreMock) -> commands::Context {
         let env = Environment::new(
@@ -130,7 +131,7 @@ mod tests {
             String::new(),
             String::new(),
         );
-        commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(instance_store))
+        commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(instance_store))
     }
 
     #[test]
@@ -141,7 +142,8 @@ mod tests {
     #[tokio::test]
     async fn test_modify_stopped_instance_prints_nothing() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(InstanceStoreMock::new(vec![Instance {
             name: "test".to_string(),
             ..Instance::default()
@@ -159,7 +161,8 @@ mod tests {
     #[tokio::test]
     async fn test_modify_running_instance_notes_restart() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(InstanceStoreMock::new_with_running(
             vec![Instance {
                 name: "test".to_string(),
@@ -183,7 +186,8 @@ mod tests {
     #[tokio::test]
     async fn test_modify_running_instance_port_attempts_live_apply() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(InstanceStoreMock::new_with_running(
             vec![Instance {
                 name: "test".to_string(),

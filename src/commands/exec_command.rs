@@ -5,6 +5,7 @@ use crate::models::Target;
 use crate::ssh::SshClient;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 /// Execute a command in a VM instance
 ///
@@ -27,7 +28,7 @@ pub struct ExecCommand {
 }
 
 impl Command for ExecCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
         let name = self.target.get_instance();
 

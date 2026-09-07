@@ -5,6 +5,7 @@ use crate::models::{DataSize, ImageName};
 use crate::util;
 use crate::view::{Console, MapView};
 use clap::Parser;
+use std::sync::Arc;
 
 /// Show VM images
 #[derive(Parser)]
@@ -17,7 +18,7 @@ pub struct ShowImageCommand {
 }
 
 impl Command for ShowImageCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
         let image = fetch_image_info(console, context.get_system(), env, &self.name).await?;
 

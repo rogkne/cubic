@@ -3,6 +3,7 @@ use crate::error::{Error, Result};
 use crate::view::Console;
 use clap::{CommandFactory, Parser};
 use clap_complete::Shell;
+use std::sync::Arc;
 
 /// Generate shell completion scripts
 ///
@@ -22,7 +23,7 @@ pub struct CompletionsCommand {
 }
 
 impl Command for CompletionsCommand {
-    async fn run(&self, _console: &mut Console<'_>, _context: &Context) -> Result<()> {
+    async fn run(&self, _console: &Arc<Console>, _context: &Context) -> Result<()> {
         let Some(shell) = self.shell.or_else(Shell::from_env) else {
             return Err(Error::CouldNotDetectShell);
         };

@@ -5,7 +5,7 @@ use crate::instance::InstanceDao;
 use crate::platform::System;
 use crate::view::Console;
 use clap::{CommandFactory, Parser, Subcommand};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -101,7 +101,7 @@ pub struct CommandDispatcher {
 }
 
 impl CommandDispatcher {
-    pub async fn dispatch(self, system: Rc<dyn System>, console: &mut Console<'_>) -> Result<()> {
+    pub async fn dispatch(self, system: Arc<dyn System>, console: &Arc<Console>) -> Result<()> {
         let Some(command) = self.command else {
             println!("{}", CommandDispatcher::command().render_long_help());
             return Ok(());
@@ -113,9 +113,9 @@ impl CommandDispatcher {
         ));
         let env = EnvironmentFactory::create_env(system.as_ref())?;
         let context = &commands::Context::new(
-            Rc::clone(&system),
+            Arc::clone(&system),
             env.clone(),
-            Box::new(InstanceDao::new(Rc::clone(&system), &env)?),
+            Box::new(InstanceDao::new(Arc::clone(&system), &env)?),
         );
 
         let result = match &command {

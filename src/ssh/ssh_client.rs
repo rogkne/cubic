@@ -22,7 +22,7 @@ enum AuthMethod {
 /// Polls the terminal geometry every 100ms and propagates changes to
 /// the remote PTY. Returns when sending a window change fails.
 async fn send_geometry_updates(
-    console: &Console<'_>,
+    console: &Arc<Console>,
     output: &ChannelWriteHalf<client::Msg>,
 ) -> Result<(), ()> {
     let mut geometry = console.get_geometry();
@@ -114,7 +114,7 @@ impl<'a> SshClient<'a> {
 
     async fn authenticate_with_password(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         session: &mut russh::client::Handle<ServerKeyHandler>,
         user: &str,
         machine: &str,
@@ -139,7 +139,7 @@ impl<'a> SshClient<'a> {
 
     async fn authenticate(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         session: &mut russh::client::Handle<ServerKeyHandler>,
         user: &str,
         machine: &str,
@@ -178,7 +178,7 @@ impl<'a> SshClient<'a> {
 
     fn warn_deprecated_auth(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         machine: &str,
         client_key: &str,
     ) -> Result<(), ()> {
@@ -210,7 +210,7 @@ impl<'a> SshClient<'a> {
     /// to trust it from now on.
     fn confirm_new_host_key(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         machine: &str,
         pinned: &str,
         offered: &str,
@@ -229,7 +229,7 @@ impl<'a> SshClient<'a> {
 
     pub async fn open_channel(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         machine: &str,
         client_key: &str,
         user: &str,
@@ -308,7 +308,7 @@ impl<'a> SshClient<'a> {
 
     pub async fn shell(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         instance: &str,
         channel: Channel<russh::client::Msg>,
     ) -> Result<(), Error> {
@@ -381,7 +381,7 @@ impl<'a> SshClient<'a> {
 
     async fn open_sftp(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         instance: &Instance,
         user: &Option<String>,
         client_key: &str,
@@ -402,7 +402,7 @@ impl<'a> SshClient<'a> {
 
     async fn open_target_fs(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         path: &TargetInstancePath,
         client_key: Option<&str>,
     ) -> Result<SftpPath, Error> {
@@ -427,7 +427,7 @@ impl<'a> SshClient<'a> {
 
     pub async fn copy(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         from: &TargetInstancePath,
         from_key: Option<&str>,
         to: &TargetInstancePath,

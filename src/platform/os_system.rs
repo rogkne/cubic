@@ -1,9 +1,9 @@
-use std::cell::RefCell;
 use std::process::Child;
+use std::sync::Mutex;
 
 #[derive(Default)]
 pub struct OsSystem {
-    children: RefCell<Vec<Child>>,
+    children: Mutex<Vec<Child>>,
 }
 
 impl OsSystem {
@@ -12,11 +12,11 @@ impl OsSystem {
     }
 
     pub fn keep_child(&self, child: Child) {
-        self.children.borrow_mut().push(child);
+        self.children.lock().unwrap().push(child);
     }
 
     pub fn reap_children(&self) {
-        for mut child in self.children.borrow_mut().drain(..) {
+        for mut child in self.children.lock().unwrap().drain(..) {
             let _ = child.try_wait();
         }
     }

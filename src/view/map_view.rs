@@ -1,4 +1,5 @@
 use crate::view::Console;
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct MapView {
@@ -14,7 +15,7 @@ impl MapView {
         self.items.push((key.to_string(), value.to_string()));
     }
 
-    pub fn print(self, console: &mut Console<'_>) {
+    pub fn print(self, console: &Arc<Console>) {
         let max_key_length = self
             .items
             .iter()

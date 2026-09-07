@@ -6,6 +6,7 @@ use crate::util;
 use crate::view::Console;
 use crate::web::WebClient;
 use std::path::Path;
+use std::sync::Arc;
 
 const IMAGE_PROVIDERS: &[&dyn image::ImageProvider] = &[
     &image::AlmaLinuxImageProvider {},
@@ -42,7 +43,7 @@ impl<'a> ImageFactory<'a> {
     }
 
     async fn get_images_from_provider_name_arch(
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         web: &mut WebClient,
         image_provider: &dyn image::ImageProvider,
         name: &str,
@@ -133,7 +134,7 @@ impl<'a> ImageFactory<'a> {
     }
 
     async fn get_images_from_provider(
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         web: &mut WebClient,
         image_provider: &dyn image::ImageProvider,
         filter: Option<ImageName>,
@@ -162,7 +163,7 @@ impl<'a> ImageFactory<'a> {
     }
 
     async fn get_images(
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         web: &mut WebClient,
         filter: Option<ImageName>,
     ) -> Vec<Image> {
@@ -190,7 +191,7 @@ impl<'a> ImageFactory<'a> {
 
     async fn read_images(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         filter: Option<ImageName>,
     ) -> Result<Vec<Image>> {
         // Read cache
@@ -234,11 +235,11 @@ impl<'a> ImageFactory<'a> {
         })
     }
 
-    pub async fn get_all_images(&self, console: &mut Console<'_>) -> Result<Vec<Image>> {
+    pub async fn get_all_images(&self, console: &Arc<Console>) -> Result<Vec<Image>> {
         self.read_images(console, None).await
     }
 
-    pub async fn find_image(&self, console: &mut Console<'_>, name: &ImageName) -> Result<Image> {
+    pub async fn find_image(&self, console: &Arc<Console>, name: &ImageName) -> Result<Image> {
         self.read_images(console, Some(name.clone()))
             .await
             .and_then(|images| {

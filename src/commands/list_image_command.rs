@@ -4,6 +4,7 @@ use crate::image::ImageStore;
 use crate::models::{Arch, DataSize};
 use crate::view::{Alignment, Console, TableView};
 use clap::Parser;
+use std::sync::Arc;
 
 /// List VM images
 ///
@@ -37,7 +38,7 @@ pub struct ListImageCommand {
 }
 
 impl Command for ListImageCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
         let images = fetch_image_list(console, context.get_system(), context.get_env()).await;
 
         let mut view = TableView::new();
