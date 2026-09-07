@@ -170,10 +170,7 @@ impl Process for OsSystem {
             }
         }
 
-        // Reap the child when it eventually exits to avoid a zombie process.
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
+        self.keep_child(child);
 
         Ok(())
     }
@@ -184,6 +181,7 @@ impl Process for OsSystem {
     }
 
     fn exit(&self, code: i32) -> ! {
+        self.reap_children();
         std::process::exit(code)
     }
 
