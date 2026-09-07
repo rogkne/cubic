@@ -5,7 +5,6 @@ use crate::view::Console;
 use crate::view::Spinner;
 use clap::Parser;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 
 /// Stop VM instances
@@ -81,7 +80,7 @@ impl Command for StopCommand {
 
         if self.wait {
             while actions.iter().any(|action| !action.is_done(instance_store)) {
-                thread::sleep(Duration::from_secs(1))
+                tokio::time::sleep(Duration::from_secs(1)).await
             }
         }
 
