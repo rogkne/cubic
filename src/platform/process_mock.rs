@@ -169,6 +169,10 @@ impl Process for SystemMock {
     fn kill_process(&self, pid: u64) -> Result<()> {
         self.processes.borrow_mut().kill(pid)
     }
+
+    fn exit(&self, _code: i32) -> ! {
+        panic!("exit is not supported in tests")
+    }
 }
 
 #[cfg(test)]

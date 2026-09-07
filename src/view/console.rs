@@ -148,6 +148,11 @@ impl<'a> Console<'a> {
         self.emit(Stream::Stderr, msg, Some(("error:", Color::Red)));
     }
 
+    pub fn flush(&mut self) {
+        self.system.flush(Stream::Stdout);
+        self.system.flush(Stream::Stderr);
+    }
+
     pub fn get_geometry(&self) -> Option<(u32, u32)> {
         crossterm::terminal::size()
             .map(|(w, h)| (w as u32, h as u32))

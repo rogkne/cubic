@@ -17,11 +17,10 @@ mod web;
 use crate::commands::CommandDispatcher;
 use crate::platform::{OsSystem, System};
 use clap::Parser;
-use std::process::ExitCode;
 use std::rc::Rc;
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> ExitCode {
+async fn main() -> ! {
     // Disable raw mode before the default panic hook runs, so a panic during
     // an interactive session (ssh, console) does not leave the terminal
     // broken. This also covers panic = 'abort' builds, since the hook runs
@@ -34,14 +33,14 @@ async fn main() -> ExitCode {
 
     let system: Rc<dyn System> = Rc::new(OsSystem::new());
     let console = &mut view::Console::new(system.as_ref());
-    match CommandDispatcher::parse()
+    let result = CommandDispatcher::parse()
         .dispatch(Rc::clone(&system), console)
-        .await
-    {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            console.error(&e.to_string());
-            ExitCode::FAILURE
-        }
+        .await;
+    if let Err(error) = &result {
+        console.error(&error.to_string());
     }
+    let code = result.map_or(1, |()| 0);
+
+    console.flush();
+    system.exit(code);
 }
