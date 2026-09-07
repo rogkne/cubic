@@ -18,4 +18,6 @@ pub trait Process {
 
     fn exists_process(&self, pid: u64) -> bool;
     fn kill_process(&self, pid: u64) -> Result<()>;
+
+    fn exit(&self, code: i32) -> !;
 }

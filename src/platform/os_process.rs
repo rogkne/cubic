@@ -183,6 +183,10 @@ impl Process for OsSystem {
         system.process(sys_pid).is_some()
     }
 
+    fn exit(&self, code: i32) -> ! {
+        std::process::exit(code)
+    }
+
     fn kill_process(&self, pid: u64) -> Result<()> {
         let (system, sys_pid) = Self::read_process_table(pid);
         let process = system.process(sys_pid).ok_or(Error::ProcessNotFound(pid))?;
