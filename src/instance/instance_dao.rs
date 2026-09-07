@@ -5,17 +5,17 @@ use crate::platform::System;
 use crate::qemu::QemuImg;
 use crate::qemu::QemuMonitorClient;
 use std::path::Path;
-use std::rc::Rc;
 use std::str;
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub struct InstanceDao {
     pub env: Environment,
-    system: Rc<dyn System>,
+    system: Arc<dyn System>,
 }
 
 impl InstanceDao {
-    pub fn new(system: Rc<dyn System>, env: &Environment) -> Result<Self> {
+    pub fn new(system: Arc<dyn System>, env: &Environment) -> Result<Self> {
         system.create_writable_dir(Path::new(&env.get_instance_dir()))?;
         system.create_writable_dir(Path::new(env.get_cache_dir()))?;
 
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn test_exists_true_when_instance_dir_present() {
         let system = SystemMock::new().add_dir("/data/machines/test");
-        let dao = InstanceDao::new(Rc::new(system), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &build_env()).unwrap();
 
         assert!(dao.exists("test"));
         assert!(!dao.exists("missing"));
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_store_then_load_round_trips_instance() {
         let system = SystemMock::new().add_dir("/data/machines/test");
-        let dao = InstanceDao::new(Rc::new(system), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &build_env()).unwrap();
         let instance = Instance {
             name: "test".to_string(),
             ..Instance::default()
@@ -265,7 +265,7 @@ mod tests {
     #[test]
     fn test_load_reports_a_missing_config() {
         let system = SystemMock::new().add_dir("/data/machines/test");
-        let dao = InstanceDao::new(Rc::new(system), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &build_env()).unwrap();
 
         assert!(matches!(
             dao.load("test"),
@@ -279,7 +279,7 @@ mod tests {
         let system = SystemMock::new()
             .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
             .add_process(1234);
-        let dao = InstanceDao::new(Rc::new(system), &env).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &env).unwrap();
 
         assert!(dao.is_running(&build_instance()));
         assert_eq!(dao.get_pid(&build_instance()), Some(1234));
@@ -288,8 +288,9 @@ mod tests {
     #[test]
     fn test_is_running_false_and_removes_stale_pid_file() {
         let env = build_env();
-        let system = Rc::new(SystemMock::new().add_file(&env.get_qemu_pid_file("test"), b"1234\n"));
-        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+        let system =
+            Arc::new(SystemMock::new().add_file(&env.get_qemu_pid_file("test"), b"1234\n"));
+        let dao = InstanceDao::new(Arc::clone(&system) as Arc<dyn System>, &env).unwrap();
 
         assert!(!dao.is_running(&build_instance()));
         assert!(!system.exists_path(Path::new(&env.get_qemu_pid_file("test"))));
@@ -298,12 +299,12 @@ mod tests {
     #[test]
     fn test_kill_kills_pid_and_removes_pid_file() {
         let env = build_env();
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
                 .add_process(1234),
         );
-        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+        let dao = InstanceDao::new(Arc::clone(&system) as Arc<dyn System>, &env).unwrap();
 
         dao.kill(&build_instance()).unwrap();
 
@@ -314,12 +315,12 @@ mod tests {
     #[test]
     fn test_kill_succeeds_when_the_process_died_first() {
         let env = build_env();
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
                 .add_vanishing_process(1234),
         );
-        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+        let dao = InstanceDao::new(Arc::clone(&system) as Arc<dyn System>, &env).unwrap();
 
         // The process is gone, which is what the call asked for, so losing the
         // race to whoever reaped it is not a failure.
@@ -332,12 +333,12 @@ mod tests {
     #[test]
     fn test_kill_keeps_pid_file_when_the_kill_fails() {
         let env = build_env();
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
                 .add_unkillable_process(1234),
         );
-        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+        let dao = InstanceDao::new(Arc::clone(&system) as Arc<dyn System>, &env).unwrap();
 
         assert!(matches!(
             dao.kill(&build_instance()),
@@ -352,7 +353,7 @@ mod tests {
     #[test]
     fn test_kill_errors_when_not_running() {
         let system = SystemMock::new();
-        let dao = InstanceDao::new(Rc::new(system), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &build_env()).unwrap();
 
         assert!(matches!(
             dao.kill(&build_instance()),
@@ -377,8 +378,8 @@ mod tests {
             "qemu-img snapshot -c clean {}",
             env.get_instance_image_file("test")
         );
-        let system = Rc::new(SystemMock::new().add_command_output(&command, b""));
-        let dao = InstanceDao::new(Rc::clone(&system) as Rc<dyn System>, &env).unwrap();
+        let system = Arc::new(SystemMock::new().add_command_output(&command, b""));
+        let dao = InstanceDao::new(Arc::clone(&system) as Arc<dyn System>, &env).unwrap();
 
         dao.create_snapshot(&build_instance(), "clean").unwrap();
 
@@ -387,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_create_snapshot_rejects_a_duplicate_name() {
-        let dao = InstanceDao::new(Rc::new(SystemMock::new()), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(SystemMock::new()), &build_env()).unwrap();
 
         assert!(matches!(
             dao.create_snapshot(&build_instance_with_snapshot(), "clean"),
@@ -402,7 +403,7 @@ mod tests {
         let system = SystemMock::new()
             .add_file(&env.get_qemu_pid_file("test"), b"1234\n")
             .add_process(1234);
-        let dao = InstanceDao::new(Rc::new(system), &env).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &env).unwrap();
 
         assert!(matches!(
             dao.create_snapshot(&build_instance(), "clean"),
@@ -412,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_restore_snapshot_rejects_an_unknown_name() {
-        let dao = InstanceDao::new(Rc::new(SystemMock::new()), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(SystemMock::new()), &build_env()).unwrap();
 
         assert!(matches!(
             dao.restore_snapshot(&build_instance(), "clean"),
@@ -426,7 +427,7 @@ mod tests {
         let system = SystemMock::new()
             .add_dir("/data/machines/zebra")
             .add_dir("/data/machines/apple");
-        let dao = InstanceDao::new(Rc::new(system), &build_env()).unwrap();
+        let dao = InstanceDao::new(Arc::new(system), &build_env()).unwrap();
 
         assert_eq!(dao.get_instances(), vec!["apple", "zebra"]);
     }

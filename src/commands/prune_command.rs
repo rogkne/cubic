@@ -4,6 +4,7 @@ use crate::models::DataSize;
 use crate::view::{ConfirmDialog, Console};
 use clap::Parser;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 const LEGACY_INSTANCES_DIR: &str = "instances";
 
@@ -20,7 +21,7 @@ pub struct PruneCommand {
 }
 
 impl Command for PruneCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
         let system = context.get_system();
 
@@ -65,8 +66,8 @@ mod tests {
     use crate::models::{Environment, UserName};
     use crate::platform::{FileSystem, System, SystemMock};
     use std::path::Path;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_env() -> Environment {
         Environment::new(
@@ -76,16 +77,16 @@ mod tests {
         )
     }
 
-    fn build_context(system: &Rc<SystemMock>, env: &Environment) -> commands::Context {
+    fn build_context(system: &Arc<SystemMock>, env: &Environment) -> commands::Context {
         commands::Context::new(
-            Rc::clone(system) as Rc<dyn System>,
+            Arc::clone(system) as Arc<dyn System>,
             env.clone(),
             Box::new(InstanceStoreMock::new(Vec::new())),
         )
     }
 
-    async fn run_prune(system: &Rc<SystemMock>, env: &Environment) -> String {
-        let console = &mut Console::new(system.as_ref());
+    async fn run_prune(system: &Arc<SystemMock>, env: &Environment) -> String {
+        let console = &Console::new(Arc::clone(system) as Arc<dyn System>);
         PruneCommand {
             yes: commands::YesArg { value: true },
         }
@@ -98,7 +99,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_the_image_cache_and_the_legacy_cache_instance_dir() {
         let env = build_env();
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .add_file(&env.get_image_cache_file(), b"cache")
                 .add_file(&format!("{}/debian", env.get_image_dir()), b"image")
@@ -116,7 +117,7 @@ mod tests {
     async fn test_keep_the_instance_data_dir() {
         let env = build_env();
         let instance_file = format!("{}/cloud-init.iso", env.get_instance_dir2("test"));
-        let system = Rc::new(SystemMock::new().add_file(&instance_file, b"seed"));
+        let system = Arc::new(SystemMock::new().add_file(&instance_file, b"seed"));
 
         run_prune(&system, &env).await;
 
@@ -126,7 +127,7 @@ mod tests {
     #[tokio::test]
     async fn test_report_the_size_of_everything_it_deletes() {
         let env = build_env();
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .add_file(&format!("{}/debian", env.get_image_dir()), &[0; 1024])
                 .add_file("/cache/instances/test/user-data.img", &[0; 1024]),

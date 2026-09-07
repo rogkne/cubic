@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::util;
 use crate::view::{Alignment, Console, TableView};
 use clap::Parser;
+use std::sync::Arc;
 
 /// List VM instances
 ///
@@ -30,7 +31,7 @@ pub struct ListInstanceCommand {
 }
 
 impl Command for ListInstanceCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -86,9 +87,9 @@ mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
     use crate::models::{Arch, DataSize, Environment, Instance, UserName};
-    use crate::platform::SystemMock;
-    use std::rc::Rc;
+    use crate::platform::{System, SystemMock};
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instances: Vec<Instance>) -> commands::Context {
         build_context_with_store(InstanceStoreMock::new(instances))
@@ -100,7 +101,7 @@ mod tests {
             String::new(),
             String::new(),
         );
-        commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(store))
+        commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(store))
     }
 
     fn build_instances() -> Vec<Instance> {
@@ -134,7 +135,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_instance_command() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(build_instances());
 
         ListInstanceCommand { all: false.into() }
@@ -155,7 +157,8 @@ test2   amd64      5      0 B       5000 B        no
     #[tokio::test]
     async fn test_list_instance_command_all_adds_the_pid_column() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(build_instances());
 
         ListInstanceCommand { all: true.into() }
@@ -176,7 +179,8 @@ PID   Name    Arch    CPUs   Memory         Disk   Running
     #[tokio::test]
     async fn test_list_instance_command_all_shows_the_pid_of_a_running_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context_with_store(
             InstanceStoreMock::new_with_running(build_instances(), &["test2"])
                 .set_pid("test2", 1059),
@@ -200,7 +204,8 @@ PID    Name    Arch    CPUs   Memory         Disk   Running
     #[tokio::test]
     async fn test_list_instance_command_empty() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(Vec::new());
 
         ListInstanceCommand { all: false.into() }

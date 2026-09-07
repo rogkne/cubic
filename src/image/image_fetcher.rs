@@ -54,7 +54,7 @@ impl ImageFetcher {
 
     pub async fn fetch(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         system: &dyn System,
         image: &Image,
         target_file: &Path,

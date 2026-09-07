@@ -112,37 +112,39 @@ impl SystemMock {
     }
 
     fn add_process_state(self, pid: u64, state: ProcessState) -> Self {
-        self.processes.borrow_mut().add(pid, state);
+        self.processes.lock().unwrap().add(pid, state);
         self
     }
 
     pub fn get_killed_processes(&self) -> Vec<u64> {
-        self.processes.borrow().get_killed()
+        self.processes.lock().unwrap().get_killed()
     }
 
     pub fn add_command_output(self, command: &str, stdout: &[u8]) -> Self {
         self.commands
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .add(command, CommandResult::Output(stdout.to_vec()));
         self
     }
 
     pub fn add_failing_command(self, command: &str, stderr: &str) -> Self {
         self.commands
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .add(command, CommandResult::Failure(stderr.to_string()));
         self
     }
 
     // Every command the host was asked to run, seeded or not, in order.
     pub fn get_executed_commands(&self) -> Vec<String> {
-        self.commands.borrow().get_executed()
+        self.commands.lock().unwrap().get_executed()
     }
 }
 
 impl Process for SystemMock {
     fn run_command(&self, command: &SystemCommand) -> Result<Vec<u8>> {
-        self.commands.borrow_mut().run(command)
+        self.commands.lock().unwrap().run(command)
     }
 
     // A seeded command stands for one that comes up and prints the marker, so
@@ -153,21 +155,21 @@ impl Process for SystemMock {
         _marker: &str,
         _timeout: Duration,
     ) -> Result<()> {
-        self.commands.borrow_mut().run(command).map(|_| ())
+        self.commands.lock().unwrap().run(command).map(|_| ())
     }
 
     // A detached start has nothing to wait for, so it only reports whether the
     // host could launch the command at all.
     fn spawn_command(&self, command: &SystemCommand) -> Result<()> {
-        self.commands.borrow_mut().run(command).map(|_| ())
+        self.commands.lock().unwrap().run(command).map(|_| ())
     }
 
     fn exists_process(&self, pid: u64) -> bool {
-        self.processes.borrow().exists(pid)
+        self.processes.lock().unwrap().exists(pid)
     }
 
     fn kill_process(&self, pid: u64) -> Result<()> {
-        self.processes.borrow_mut().kill(pid)
+        self.processes.lock().unwrap().kill(pid)
     }
 
     fn exit(&self, _code: i32) -> ! {

@@ -45,7 +45,7 @@ pub struct StartCommand {
 }
 
 impl Command for StartCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         self.instances.require_names()?;
 
         let instance_store = context.get_instance_store();
@@ -118,7 +118,7 @@ impl StartCommand {
     /// is aborted when the user declines or nothing fits.
     fn fit_to_available_memory(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         system: &dyn System,
         instance_store: &dyn InstanceStore,
         instance: &mut Instance,
@@ -169,8 +169,8 @@ mod tests {
     use crate::instance::{InstanceDao, InstanceStoreMock};
     use crate::models::{Environment, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     const GIB: usize = 1024 * 1024 * 1024;
 
@@ -193,15 +193,15 @@ mod tests {
 
     // A real dao over a mocked host, so an assertion reads back the port that
     // survived a write rather than one the store was handed.
-    fn build_dao(system: &Rc<SystemMock>) -> InstanceDao {
-        InstanceDao::new(Rc::clone(system) as Rc<dyn System>, &build_env()).unwrap()
+    fn build_dao(system: &Arc<SystemMock>) -> InstanceDao {
+        InstanceDao::new(Arc::clone(system) as Arc<dyn System>, &build_env()).unwrap()
     }
 
     // Seeds a stopped instance on the given ssh port and hands back a context
     // over a host too small to run it. The run then stops at the memory check,
     // which is the step right after the port reassignment, so a port assertion
     // never depends on what QEMU would have done later.
-    fn build_starved_context(system: &Rc<SystemMock>, ssh_port: u16) -> Context {
+    fn build_starved_context(system: &Arc<SystemMock>, ssh_port: u16) -> Context {
         let instance = Instance {
             ssh_port,
             ..build_instance()
@@ -209,7 +209,7 @@ mod tests {
         build_dao(system).store(&instance).unwrap();
 
         Context::new(
-            Rc::clone(system) as Rc<dyn System>,
+            Arc::clone(system) as Arc<dyn System>,
             build_env(),
             Box::new(build_dao(system)),
         )
@@ -217,18 +217,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_reassigns_an_ssh_port_that_is_taken() {
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .set_host_resources(GIB as u64, GIB as u64, 8)
                 .add_dir("/data/machines/test")
                 .add_open_port(22000),
         );
         let context = build_starved_context(&system, 22000);
-        let mut console = Console::new(system.as_ref());
+        let console = Console::new(Arc::clone(&system) as Arc<dyn System>);
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
 
         assert!(matches!(
-            command.run(&mut console, &context).await,
+            command.run(&console, &context).await,
             Err(Error::NotEnoughMemory(_))
         ));
         // Read back through the dao, so the new port has to have been written
@@ -238,17 +238,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_keeps_an_ssh_port_that_is_free() {
-        let system = Rc::new(
+        let system = Arc::new(
             SystemMock::new()
                 .set_host_resources(GIB as u64, GIB as u64, 8)
                 .add_dir("/data/machines/test"),
         );
         let context = build_starved_context(&system, 22000);
-        let mut console = Console::new(system.as_ref());
+        let console = Console::new(Arc::clone(&system) as Arc<dyn System>);
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
 
         assert!(matches!(
-            command.run(&mut console, &context).await,
+            command.run(&console, &context).await,
             Err(Error::NotEnoughMemory(_))
         ));
         assert_eq!(build_dao(&system).load("test").unwrap().ssh_port, 22000);
@@ -262,13 +262,13 @@ mod tests {
     #[test]
     fn test_keeps_size_when_memory_is_available() {
         let system = SystemMock::new().set_host_resources((16 * GIB) as u64, (16 * GIB) as u64, 8);
-        let mut console = Console::new(&system);
+        let console = Console::new(Arc::new(SystemMock::new()));
         let store = InstanceStoreMock::new(vec![build_instance()]);
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
         let mut instance = build_instance();
 
         command
-            .fit_to_available_memory(&mut console, &system, &store, &mut instance)
+            .fit_to_available_memory(&console, &system, &store, &mut instance)
             .unwrap();
 
         assert_eq!(instance.cpus, 8);
@@ -279,13 +279,13 @@ mod tests {
     fn test_reduces_size_to_fit_available_memory() {
         // 5 GiB available minus the 1 GiB reserve leaves a 4 GiB budget.
         let system = SystemMock::new().set_host_resources((16 * GIB) as u64, (5 * GIB) as u64, 8);
-        let mut console = Console::new(&system);
+        let console = Console::new(Arc::new(SystemMock::new()));
         let store = InstanceStoreMock::new(vec![build_instance()]);
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
         let mut instance = build_instance();
 
         command
-            .fit_to_available_memory(&mut console, &system, &store, &mut instance)
+            .fit_to_available_memory(&console, &system, &store, &mut instance)
             .unwrap();
 
         assert_eq!(instance.cpus, 8);
@@ -294,15 +294,16 @@ mod tests {
 
     #[test]
     fn test_reduces_size_when_the_user_confirms() {
-        let system = SystemMock::new().set_host_resources((16 * GIB) as u64, (5 * GIB) as u64, 8);
+        let system =
+            Arc::new(SystemMock::new().set_host_resources((16 * GIB) as u64, (5 * GIB) as u64, 8));
         system.push_input("y");
-        let mut console = Console::new(&system);
+        let console = Console::new(Arc::clone(&system) as Arc<dyn System>);
         let store = InstanceStoreMock::new(vec![build_instance()]);
         let command = StartCommand::try_parse_from(["start", "test"]).unwrap();
         let mut instance = build_instance();
 
         command
-            .fit_to_available_memory(&mut console, &system, &store, &mut instance)
+            .fit_to_available_memory(&console, &*system, &store, &mut instance)
             .unwrap();
 
         assert_eq!(instance.mem.get_bytes(), 4 * GIB);
@@ -310,15 +311,16 @@ mod tests {
 
     #[test]
     fn test_errors_when_the_user_declines() {
-        let system = SystemMock::new().set_host_resources((16 * GIB) as u64, (5 * GIB) as u64, 8);
+        let system =
+            Arc::new(SystemMock::new().set_host_resources((16 * GIB) as u64, (5 * GIB) as u64, 8));
         system.push_input("n");
-        let mut console = Console::new(&system);
+        let console = Console::new(Arc::clone(&system) as Arc<dyn System>);
         let store = InstanceStoreMock::new(vec![build_instance()]);
         let command = StartCommand::try_parse_from(["start", "test"]).unwrap();
         let mut instance = build_instance();
 
         assert!(matches!(
-            command.fit_to_available_memory(&mut console, &system, &store, &mut instance),
+            command.fit_to_available_memory(&console, &*system, &store, &mut instance),
             Err(Error::NotEnoughMemory(name)) if name == "test"
         ));
         // The instance keeps its size, the reduction is only applied on accept.
@@ -328,13 +330,13 @@ mod tests {
     #[test]
     fn test_errors_when_nothing_fits() {
         let system = SystemMock::new().set_host_resources((16 * GIB) as u64, GIB as u64, 8);
-        let mut console = Console::new(&system);
+        let console = Console::new(Arc::new(SystemMock::new()));
         let store = InstanceStoreMock::new(vec![build_instance()]);
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
         let mut instance = build_instance();
 
         assert!(matches!(
-            command.fit_to_available_memory(&mut console, &system, &store, &mut instance),
+            command.fit_to_available_memory(&console, &system, &store, &mut instance),
             Err(Error::NotEnoughMemory(name)) if name == "test"
         ));
     }

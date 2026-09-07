@@ -5,10 +5,11 @@ use crate::models::{TargetInstancePath, TargetPath};
 use crate::ssh::SshClient;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 fn resolve_target_path(
     context: &commands::Context,
-    console: &mut Console<'_>,
+    console: &Arc<Console>,
     target_path: &TargetPath,
 ) -> Result<TargetInstancePath> {
     if let Some(target) = target_path.get_target() {
@@ -30,7 +31,7 @@ fn resolve_target_path(
 
 fn check_target_is_running(
     context: &commands::Context,
-    console: &mut Console<'_>,
+    console: &Arc<Console>,
     target: &TargetPath,
 ) -> Result<()> {
     if let Some(target) = target.get_target() {
@@ -73,7 +74,7 @@ pub struct ScpCommand {
 }
 
 impl Command for ScpCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         check_target_is_running(context, console, &self.from)?;
         check_target_is_running(context, console, &self.to)?;
 
@@ -105,8 +106,8 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instance_store: InstanceStoreMock) -> commands::Context {
         let env = Environment::new(
@@ -114,13 +115,13 @@ mod tests {
             String::new(),
             String::new(),
         );
-        commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(instance_store))
+        commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(instance_store))
     }
 
     #[test]
     fn test_check_local_path_needs_no_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(InstanceStoreMock::new(Vec::new()));
         let path = TargetPath::from_str("/home/cubic/file").unwrap();
 
@@ -130,7 +131,7 @@ mod tests {
     #[test]
     fn test_check_rejects_unknown_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(InstanceStoreMock::new(Vec::new()));
         let path = TargetPath::from_str("missing:~/file").unwrap();
 
@@ -143,7 +144,7 @@ mod tests {
     #[test]
     fn test_check_rejects_stopped_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let context = build_context(InstanceStoreMock::new(vec![Instance {
             name: "test".to_string(),
             ..Instance::default()

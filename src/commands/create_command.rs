@@ -162,7 +162,7 @@ impl CreateCommand {
 impl CreateCommand {
     pub async fn create(
         &self,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
         context: &Context,
         overlay: bool,
     ) -> Result<()> {
@@ -222,7 +222,7 @@ impl CreateCommand {
 }
 
 impl Command for CreateCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
         self.create(console, context, false).await
     }
 }
@@ -232,22 +232,22 @@ mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     const GIB: usize = 1024_usize.pow(3);
 
     #[tokio::test]
     async fn test_create_rejects_existing_instance_name() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let env = Environment::new(
             UserName::from_str("cubic").unwrap(),
             String::new(),
             String::new(),
         );
         let context = Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(vec![Instance {
                 name: "test".to_string(),

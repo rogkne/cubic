@@ -126,13 +126,13 @@ impl SystemMock {
     }
 
     fn add_port_state(self, port: u16, state: PortState) -> Self {
-        self.network.borrow_mut().add(port, state);
+        self.network.lock().unwrap().add(port, state);
         self
     }
 
     // Every port the host was asked to connect to, seeded or not, in order.
     pub fn get_connected_ports(&self) -> Vec<u16> {
-        self.network.borrow().get_connected()
+        self.network.lock().unwrap().get_connected()
     }
 }
 
@@ -140,11 +140,11 @@ impl Network for SystemMock {
     // The timeout has no meaning here, since a seeded listener answers at once
     // and an unseeded one refuses at once.
     fn connect_port(&self, port: u16, _timeout: Duration) -> Result<Box<dyn ReadWrite>> {
-        self.network.borrow_mut().connect(port)
+        self.network.lock().unwrap().connect(port)
     }
 
     fn bind_port(&self) -> Result<u16> {
-        self.network.borrow_mut().bind()
+        self.network.lock().unwrap().bind()
     }
 }
 

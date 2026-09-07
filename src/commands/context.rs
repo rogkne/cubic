@@ -1,17 +1,17 @@
 use crate::instance::InstanceStore;
 use crate::models::Environment;
 use crate::platform::System;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Context {
-    system: Rc<dyn System>,
+    system: Arc<dyn System>,
     env: Environment,
     instance_store: Box<dyn InstanceStore>,
 }
 
 impl Context {
     pub fn new(
-        system: Rc<dyn System>,
+        system: Arc<dyn System>,
         env: Environment,
         instance_store: Box<dyn InstanceStore>,
     ) -> Self {

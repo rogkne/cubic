@@ -6,6 +6,7 @@ use crate::util::Either;
 use crate::view::{ConfirmDialog, Console};
 use clap::Parser;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// Delete VM instances and snapshots
 ///
@@ -75,7 +76,7 @@ impl DeleteCommand {
 }
 
 impl Command for DeleteCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         if self.targets.is_empty() {
@@ -143,7 +144,6 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, Snapshot, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
     use std::sync::{Arc, Mutex};
 
@@ -164,7 +164,7 @@ mod tests {
             String::new(),
         );
         (
-            commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(store)),
+            commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(store)),
             recorders,
         )
     }
@@ -196,7 +196,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test"])
@@ -211,7 +211,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_snapshot_keeps_the_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean"])
@@ -229,7 +229,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_ignores_duplicate_targets() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean", "test/clean"])
@@ -246,7 +246,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_instance_skips_its_own_snapshot() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean", "test"])
@@ -261,7 +261,7 @@ mod tests {
     #[tokio::test]
     async fn test_reject_an_empty_target_list() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, _) = build_context(Vec::new());
 
         assert!(matches!(
@@ -273,7 +273,7 @@ mod tests {
     #[tokio::test]
     async fn test_reject_an_unknown_snapshot() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, recorders) = build_context(vec![build_instance("test", vec!["deps"])]);
 
         assert!(matches!(

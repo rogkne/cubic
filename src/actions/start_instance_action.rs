@@ -10,6 +10,7 @@ use crate::qemu::{
 use crate::ssh::PortChecker;
 use crate::view::Console;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 pub struct StartInstanceAction {
     instance: Instance,
@@ -27,7 +28,7 @@ impl StartInstanceAction {
         context: &Context,
         qemu_args: &Option<String>,
         accel: Accel,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
     ) -> Result<()> {
         if context.get_instance_store().is_running(&self.instance) {
             return Ok(());
@@ -171,7 +172,7 @@ impl StartInstanceAction {
         host_accel: &'static str,
         host_arch: Arch,
         probe: &QemuAcceleratorProbe,
-        console: &mut Console<'_>,
+        console: &Arc<Console>,
     ) -> &'static str {
         match accel {
             Accel::Off => SOFTWARE_ACCEL,
@@ -218,7 +219,7 @@ mod tests {
         guest_arch: Arch,
         host_arch: Arch,
     ) -> &'static str {
-        let mut console = Console::new(system);
+        let console = Console::new(Arc::new(SystemMock::new()));
         let probe = QemuAcceleratorProbe::new(
             system,
             guest_arch,
@@ -226,7 +227,7 @@ mod tests {
             None,
             None,
         );
-        build_action(guest_arch).select_accelerator(accel, "kvm", host_arch, &probe, &mut console)
+        build_action(guest_arch).select_accelerator(accel, "kvm", host_arch, &probe, &console)
     }
 
     fn select(system: &SystemMock, accel: Accel) -> &'static str {

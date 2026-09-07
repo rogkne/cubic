@@ -39,7 +39,7 @@ pub struct StopCommand {
 }
 
 impl Command for StopCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         if !self.all.value {
@@ -84,7 +84,6 @@ impl Command for StopCommand {
             }
         }
 
-        console.stop();
         Ok(())
     }
 }
@@ -96,8 +95,8 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     #[test]
     fn test_reject_path_traversal() {
@@ -107,14 +106,14 @@ mod tests {
     #[tokio::test]
     async fn test_reject_empty_instance_list_without_all() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let env = Environment::new(
             UserName::from_str("myuser").unwrap(),
             String::new(),
             String::new(),
         );
         let context = commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(Vec::new())),
         );
@@ -135,14 +134,14 @@ mod tests {
     #[tokio::test]
     async fn test_allow_empty_instance_list_with_all() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let env = Environment::new(
             UserName::from_str("myuser").unwrap(),
             String::new(),
             String::new(),
         );
         let context = commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(Vec::new())),
         );

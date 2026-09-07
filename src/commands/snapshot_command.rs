@@ -4,6 +4,7 @@ use crate::error::{Error, Result};
 use crate::models::SnapshotName;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 /// Create a snapshot of a VM instance
 ///
@@ -29,7 +30,7 @@ pub struct SnapshotCommand {
 }
 
 impl Command for SnapshotCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
 
@@ -52,7 +53,6 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::str::FromStr;
     use std::sync::{Arc, Mutex};
 
@@ -74,7 +74,7 @@ mod tests {
             String::new(),
         );
         (
-            commands::Context::new(Rc::new(SystemMock::new()), env, Box::new(store)),
+            commands::Context::new(Arc::new(SystemMock::new()), env, Box::new(store)),
             snapshots,
         )
     }
@@ -89,7 +89,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_snapshot() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, snapshots) = build_context(vec![build_instance()], &[]);
 
         build_command("test/clean")
@@ -103,7 +103,7 @@ mod tests {
     #[tokio::test]
     async fn test_reject_a_running_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let (context, _) = build_context(vec![build_instance()], &["test"]);
 
         assert!(matches!(

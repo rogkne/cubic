@@ -1,11 +1,10 @@
 use crate::error::{Error, FsOperation, Result};
 use crate::platform::{FileSystem, SystemMock};
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 // Files and directories as two flat path keyed collections. They live in one
 // struct because most operations, from a lookup to a rename, have to consult
@@ -155,13 +154,14 @@ impl FileSystemMock {
 // flushed or dropped first, matching how a real File writes through.
 struct FileWriterMock {
     path: PathBuf,
-    file_system: Rc<RefCell<FileSystemMock>>,
+    file_system: Arc<Mutex<FileSystemMock>>,
 }
 
 impl Write for FileWriterMock {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.file_system
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .append_to_file(&self.path, buf);
         Ok(buf.len())
     }
@@ -174,32 +174,33 @@ impl Write for FileWriterMock {
 impl SystemMock {
     pub fn add_file(self, path: &str, content: &[u8]) -> Self {
         self.file_system
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .add_file(Path::new(path), content);
         self
     }
 
     pub fn add_dir(self, path: &str) -> Self {
-        self.file_system.borrow_mut().add_dir(Path::new(path));
+        self.file_system.lock().unwrap().add_dir(Path::new(path));
         self
     }
 
     pub fn get_written_file(&self, path: &str) -> Option<Vec<u8>> {
-        self.file_system.borrow().get_file(Path::new(path))
+        self.file_system.lock().unwrap().get_file(Path::new(path))
     }
 }
 
 impl FileSystem for SystemMock {
     fn exists_path(&self, path: &Path) -> bool {
-        self.file_system.borrow().exists_path(path)
+        self.file_system.lock().unwrap().exists_path(path)
     }
 
     fn exists_dir(&self, path: &Path) -> bool {
-        self.file_system.borrow().exists_dir(path)
+        self.file_system.lock().unwrap().exists_dir(path)
     }
 
     fn get_path_size(&self, path: &Path) -> u64 {
-        self.file_system.borrow().get_path_size(path)
+        self.file_system.lock().unwrap().get_path_size(path)
     }
 
     fn get_available_space(&self, _path: &Path) -> Option<u64> {
@@ -207,7 +208,7 @@ impl FileSystem for SystemMock {
     }
 
     fn create_dir(&self, path: &Path) -> Result<()> {
-        self.file_system.borrow_mut().add_dir(path);
+        self.file_system.lock().unwrap().add_dir(path);
         Ok(())
     }
 
@@ -216,12 +217,12 @@ impl FileSystem for SystemMock {
     }
 
     fn remove_dir(&self, path: &Path) -> Result<()> {
-        self.file_system.borrow_mut().remove_tree(path);
+        self.file_system.lock().unwrap().remove_tree(path);
         Ok(())
     }
 
     fn read_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let file_system = self.file_system.borrow();
+        let file_system = self.file_system.lock().unwrap();
         if !file_system.exists_dir(path) {
             return Err(Error::from_fs(
                 FsOperation::ReadDir,
@@ -233,16 +234,17 @@ impl FileSystem for SystemMock {
     }
 
     fn create_file(&self, path: &Path) -> Result<Box<dyn Write>> {
-        self.file_system.borrow_mut().set_file(path, &[]);
+        self.file_system.lock().unwrap().set_file(path, &[]);
         Ok(Box::new(FileWriterMock {
             path: path.to_path_buf(),
-            file_system: Rc::clone(&self.file_system),
+            file_system: Arc::clone(&self.file_system),
         }))
     }
 
     fn open_file(&self, path: &Path) -> Result<Box<dyn Read>> {
         self.file_system
-            .borrow()
+            .lock()
+            .unwrap()
             .get_file(path)
             .map(|content| Box::new(Cursor::new(content)) as Box<dyn Read>)
             .ok_or_else(|| {
@@ -251,9 +253,14 @@ impl FileSystem for SystemMock {
     }
 
     fn read_file_to_string(&self, path: &Path) -> Result<String> {
-        let content = self.file_system.borrow().get_file(path).ok_or_else(|| {
-            Error::from_fs(FsOperation::ReadFile, path, io::ErrorKind::NotFound.into())
-        })?;
+        let content = self
+            .file_system
+            .lock()
+            .unwrap()
+            .get_file(path)
+            .ok_or_else(|| {
+                Error::from_fs(FsOperation::ReadFile, path, io::ErrorKind::NotFound.into())
+            })?;
         String::from_utf8(content).map_err(|e| {
             Error::from_fs(
                 FsOperation::ReadFile,
@@ -264,7 +271,7 @@ impl FileSystem for SystemMock {
     }
 
     fn write_file(&self, path: &Path, contents: &[u8]) -> Result<()> {
-        self.file_system.borrow_mut().set_file(path, contents);
+        self.file_system.lock().unwrap().set_file(path, contents);
         Ok(())
     }
 
@@ -273,7 +280,7 @@ impl FileSystem for SystemMock {
     }
 
     fn rename_file(&self, from: &Path, to: &Path) -> Result<()> {
-        if self.file_system.borrow_mut().rename_path(from, to) {
+        if self.file_system.lock().unwrap().rename_path(from, to) {
             Ok(())
         } else {
             Err(Error::RenameFile {
@@ -285,7 +292,7 @@ impl FileSystem for SystemMock {
     }
 
     fn copy_file(&self, from: &Path, to: &Path) -> Result<()> {
-        let mut file_system = self.file_system.borrow_mut();
+        let mut file_system = self.file_system.lock().unwrap();
         let content = file_system.get_file(from).ok_or_else(|| Error::CopyFile {
             from: from.to_path_buf(),
             to: to.to_path_buf(),
@@ -297,7 +304,8 @@ impl FileSystem for SystemMock {
 
     fn remove_file(&self, path: &Path) -> Result<()> {
         self.file_system
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .remove_file(path)
             .map(|_| ())
             .ok_or_else(|| {

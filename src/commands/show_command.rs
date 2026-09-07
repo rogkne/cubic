@@ -4,6 +4,7 @@ use crate::models::{ImageName, InstanceName};
 use crate::util::Either;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 /// Show VM images and instances
 ///
@@ -68,7 +69,7 @@ pub struct ShowCommand {
 }
 
 impl Command for ShowCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         match &self.name {
             Either::Left(instance) => {
                 commands::ShowInstanceCommand {
@@ -96,9 +97,9 @@ mod tests {
     use crate::error::Error;
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
-    use crate::platform::SystemMock;
-    use std::rc::Rc;
+    use crate::platform::{System, SystemMock};
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instances: Vec<Instance>) -> commands::Context {
         let env = Environment::new(
@@ -107,7 +108,7 @@ mod tests {
             String::new(),
         );
         commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(instances)),
         )
@@ -116,7 +117,8 @@ mod tests {
     #[tokio::test]
     async fn test_show_routes_plain_name_to_instance_view() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(vec![Instance {
             name: "test".to_string(),
             ..Instance::default()
@@ -136,7 +138,8 @@ mod tests {
     #[tokio::test]
     async fn test_show_rejects_unknown_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(Vec::new());
 
         let result = ShowCommand {

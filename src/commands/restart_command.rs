@@ -2,6 +2,7 @@ use crate::commands::{self, Command};
 use crate::error::Result;
 use crate::view::Console;
 use clap::Parser;
+use std::sync::Arc;
 
 /// Restart VM instances
 ///
@@ -23,7 +24,7 @@ pub struct RestartCommand {
 }
 
 impl Command for RestartCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         commands::StopCommand {
             all: false.into(),
             wait: true,

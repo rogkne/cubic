@@ -1,4 +1,5 @@
 use crate::view::Console;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -35,7 +36,7 @@ impl TableView {
         self.rows.last_mut().unwrap()
     }
 
-    pub fn print(&self, console: &mut Console<'_>) {
+    pub fn print(&self, console: &Arc<Console>) {
         let mut column_size = Vec::new();
         for row in &self.rows {
             for (index, (entry, _)) in row.entries.iter().enumerate() {

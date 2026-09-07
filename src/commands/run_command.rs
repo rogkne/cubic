@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::models::Target;
 use crate::view::Console;
 use clap::{self, ArgAction, Parser};
+use std::sync::Arc;
 
 /// Create and start a VM instance
 ///
@@ -52,7 +53,7 @@ pub struct RunCommand {
 
 impl RunCommand {
     // Best effort, a failure here must not mask the session result.
-    fn cleanup(&self, console: &mut Console<'_>, context: &commands::Context) {
+    fn cleanup(&self, console: &Arc<Console>, context: &commands::Context) {
         let name = self.create_cmd.instance_name.value.as_str();
         let store = context.get_instance_store();
 
@@ -64,7 +65,7 @@ impl RunCommand {
 }
 
 impl Command for RunCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         self.create_cmd.create(console, context, self.rm).await?;
 
         let result = commands::SshCommand {
@@ -88,13 +89,12 @@ mod tests {
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance};
     use crate::platform::SystemMock;
-    use std::rc::Rc;
     use std::sync::Arc;
 
     #[test]
     fn test_rm_stops_and_deletes_the_instance() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(system));
         let store = InstanceStoreMock::new_with_running(
             vec![Instance {
                 name: "web".to_string(),
@@ -105,7 +105,7 @@ mod tests {
         let killed = Arc::clone(&store.killed);
         let deleted = Arc::clone(&store.deleted);
         let context = commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             Environment::default(),
             Box::new(store),
         );

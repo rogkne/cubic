@@ -46,20 +46,21 @@ struct AnimationInner {
     shutdown: bool,
 }
 
-pub struct Console<'a> {
-    verbosity: Verbosity,
+pub struct Console {
+    verbosity: Mutex<Verbosity>,
     is_tty: bool,
     state: Arc<AnimationState>,
-    thread: Option<JoinHandle<()>>,
-    system: &'a dyn System,
+    thread: Mutex<Option<JoinHandle<()>>>,
+    system: Arc<dyn System>,
 }
 
-impl<'a> Console<'a> {
-    pub fn new(system: &'a dyn System) -> Self {
+impl Console {
+    pub fn new(system: Arc<dyn System>) -> Arc<Self> {
         enable_ansi_support();
-        Self {
-            verbosity: Verbosity::new(false, false),
-            is_tty: system.is_terminal(Stream::Stdout),
+        let is_tty = system.is_terminal(Stream::Stdout);
+        Arc::new(Self {
+            verbosity: Mutex::new(Verbosity::new(false, false)),
+            is_tty,
             state: Arc::new(AnimationState {
                 inner: Mutex::new(AnimationInner {
                     animation: None,
@@ -68,9 +69,9 @@ impl<'a> Console<'a> {
                 }),
                 signal: Condvar::new(),
             }),
-            thread: None,
+            thread: Mutex::new(None),
             system,
-        }
+        })
     }
 
     fn is_no_color(&self) -> bool {
@@ -120,35 +121,35 @@ impl<'a> Console<'a> {
         }
     }
 
-    pub fn set_verbosity(&mut self, verbosity: Verbosity) {
-        self.verbosity = verbosity;
+    pub fn set_verbosity(&self, verbosity: Verbosity) {
+        *self.verbosity.lock().unwrap() = verbosity;
     }
 
-    pub fn print(&mut self, msg: &str) {
+    pub fn print(&self, msg: &str) {
         self.emit(Stream::Stdout, msg, None);
     }
 
-    pub fn debug(&mut self, msg: &str) {
-        if self.verbosity.is_verbose() {
+    pub fn debug(&self, msg: &str) {
+        if self.verbosity.lock().unwrap().is_verbose() {
             self.emit(Stream::Stdout, msg, Some(("debug:", Color::Green)));
         }
     }
 
-    pub fn info(&mut self, msg: &str) {
-        if !self.verbosity.is_quiet() {
+    pub fn info(&self, msg: &str) {
+        if !self.verbosity.lock().unwrap().is_quiet() {
             self.emit(Stream::Stdout, msg, Some(("info:", Color::Blue)));
         }
     }
 
-    pub fn warn(&mut self, msg: &str) {
+    pub fn warn(&self, msg: &str) {
         self.emit(Stream::Stderr, msg, Some(("warn:", Color::Yellow)));
     }
 
-    pub fn error(&mut self, msg: &str) {
+    pub fn error(&self, msg: &str) {
         self.emit(Stream::Stderr, msg, Some(("error:", Color::Red)));
     }
 
-    pub fn flush(&mut self) {
+    pub fn flush(&self) {
         self.system.flush(Stream::Stdout);
         self.system.flush(Stream::Stderr);
     }
@@ -159,7 +160,7 @@ impl<'a> Console<'a> {
             .ok()
     }
 
-    pub fn prompt(&mut self, text: &str) -> String {
+    pub fn prompt(&self, text: &str) -> String {
         self.mute();
         self.system.print(Stream::Stdout, text);
         self.system.flush(Stream::Stdout);
@@ -168,7 +169,7 @@ impl<'a> Console<'a> {
         reply
     }
 
-    pub fn prompt_secret(&mut self, text: &str) -> Result<String, ()> {
+    pub fn prompt_secret(&self, text: &str) -> Result<String, ()> {
         self.mute();
         self.system.print(Stream::Stdout, text);
         self.system.flush(Stream::Stdout);
@@ -177,22 +178,23 @@ impl<'a> Console<'a> {
         result
     }
 
-    pub fn raw_mode(&mut self) {
+    pub fn raw_mode(&self) {
         self.system.raw_mode();
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         self.system.reset();
     }
 
-    pub fn play(&mut self, animation: Arc<Mutex<dyn Animation>>) {
-        if self.verbosity.is_quiet() || !self.is_tty {
+    pub fn play(&self, animation: Arc<Mutex<dyn Animation>>) {
+        if self.verbosity.lock().unwrap().is_quiet() || !self.is_tty {
             return;
         }
 
-        if self.thread.is_none() {
+        let mut handle = self.thread.lock().unwrap();
+        if handle.is_none() {
             let state = Arc::clone(&self.state);
-            self.thread = Some(thread::spawn(move || state.run()));
+            *handle = Some(thread::spawn(move || state.run()));
         }
 
         let mut inner = self.state.inner.lock().unwrap();
@@ -200,7 +202,7 @@ impl<'a> Console<'a> {
         self.state.signal.notify_all();
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&self) {
         let mut inner = self.state.inner.lock().unwrap();
         if inner.animation.take().is_some() {
             AnimationState::clear_line(&mut stdout());
@@ -256,12 +258,12 @@ impl AnimationState {
     }
 }
 
-impl Drop for Console<'_> {
+impl Drop for Console {
     fn drop(&mut self) {
         self.stop();
         self.state.inner.lock().unwrap().shutdown = true;
         self.state.signal.notify_all();
-        if let Some(thread) = self.thread.take() {
+        if let Some(thread) = self.thread.lock().unwrap().take() {
             thread.join().ok();
         }
     }

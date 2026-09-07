@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::util;
 use crate::view::{Alignment, Console, TableView};
 use clap::Parser;
+use std::sync::Arc;
 
 /// List ports for VM instances
 ///
@@ -28,7 +29,7 @@ use clap::Parser;
 pub struct ListPortCommand;
 
 impl Command for ListPortCommand {
-    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -78,9 +79,9 @@ mod tests {
     use super::*;
     use crate::instance::InstanceStoreMock;
     use crate::models::{Environment, Instance, UserName};
-    use crate::platform::SystemMock;
-    use std::rc::Rc;
+    use crate::platform::{System, SystemMock};
     use std::str::FromStr;
+    use std::sync::Arc;
 
     fn build_context(instances: Vec<Instance>) -> commands::Context {
         let env = Environment::new(
@@ -89,7 +90,7 @@ mod tests {
             String::new(),
         );
         commands::Context::new(
-            Rc::new(SystemMock::new()),
+            Arc::new(SystemMock::new()),
             env,
             Box::new(InstanceStoreMock::new(instances)),
         )
@@ -103,7 +104,8 @@ Add one with cubic modify <instance> --port <host_port>:<guest_port>
     #[tokio::test]
     async fn test_list_ports_without_instances_explains_how_to_add_a_rule() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(Vec::new());
 
         ListPortCommand {}.run(console, &context).await.unwrap();
@@ -114,7 +116,8 @@ Add one with cubic modify <instance> --port <host_port>:<guest_port>
     #[tokio::test]
     async fn test_list_ports_without_rules_explains_how_to_add_a_rule() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(vec![Instance {
             name: "test".to_string(),
             ssh_port: 9000,
@@ -129,7 +132,8 @@ Add one with cubic modify <instance> --port <host_port>:<guest_port>
     #[tokio::test]
     async fn test_list_ports_skips_instances_without_rules() {
         let system = SystemMock::new();
-        let console = &mut Console::new(&system);
+        let system = Arc::new(system);
+        let console = &Console::new(Arc::clone(&system) as Arc<dyn System>);
         let context = build_context(vec![
             Instance {
                 name: "test".to_string(),

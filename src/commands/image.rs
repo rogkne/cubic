@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 pub async fn fetch_image_list(
-    console: &mut Console<'_>,
+    console: &Arc<Console>,
     system: &dyn System,
     env: &Environment,
 ) -> Vec<Image> {
@@ -23,7 +23,7 @@ pub async fn fetch_image_list(
 }
 
 pub async fn fetch_image_info(
-    console: &mut Console<'_>,
+    console: &Arc<Console>,
     system: &dyn System,
     env: &Environment,
     image: &ImageName,
@@ -41,7 +41,7 @@ pub async fn fetch_image_info(
 }
 
 pub async fn fetch_image(
-    console: &mut Console<'_>,
+    console: &Arc<Console>,
     system: &dyn System,
     env: &Environment,
     image: &Image,
@@ -70,7 +70,7 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_image_skips_cached_image() {
         let system = SystemMock::new().add_file("images/debian_bookworm_amd64", b"");
-        let console = &mut Console::new(&system);
+        let console = &Console::new(Arc::new(SystemMock::new()));
         let env = Environment::new(
             UserName::from_str("cubic").unwrap(),
             String::new(),
