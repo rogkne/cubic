@@ -467,7 +467,7 @@ mod tests {
             .clone()
     }
 
-    fn check_key(
+    async fn check_key(
         pinned: Option<&ssh_key::PublicKey>,
         offered: &ssh_key::PublicKey,
     ) -> (bool, bool) {
@@ -477,29 +477,30 @@ mod tests {
             offered: Arc::clone(&seen),
         };
 
-        let accepted = util::AsyncCaller::new()
-            .call(handler.check_server_key(offered))
-            .unwrap();
+        let accepted = handler.check_server_key(offered).await.unwrap();
         let recorded =
             seen.lock().unwrap().as_deref() == Some(offered.to_openssh().unwrap().as_str());
 
         (accepted, recorded)
     }
 
-    #[test]
-    fn test_check_server_key_accepts_the_first_key() {
-        assert_eq!(check_key(None, &build_key()), (true, true));
+    #[tokio::test]
+    async fn test_check_server_key_accepts_the_first_key() {
+        assert_eq!(check_key(None, &build_key()).await, (true, true));
     }
 
-    #[test]
-    fn test_check_server_key_accepts_the_pinned_key() {
+    #[tokio::test]
+    async fn test_check_server_key_accepts_the_pinned_key() {
         let key = build_key();
 
-        assert_eq!(check_key(Some(&key), &key), (true, true));
+        assert_eq!(check_key(Some(&key), &key).await, (true, true));
     }
 
-    #[test]
-    fn test_check_server_key_rejects_a_changed_key() {
-        assert_eq!(check_key(Some(&build_key()), &build_key()), (false, true));
+    #[tokio::test]
+    async fn test_check_server_key_rejects_a_changed_key() {
+        assert_eq!(
+            check_key(Some(&build_key()), &build_key()).await,
+            (false, true)
+        );
     }
 }

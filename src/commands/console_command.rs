@@ -83,7 +83,7 @@ impl Command for ConsoleCommand {
         }
 
         console.raw_mode();
-        let shell = util::AsyncCaller::new().call(async {
+        let shell = context.call_async(async {
             let tls = TlsClient::new(&certs)?.connect_async(port).await?;
             let (mut reader, mut writer) = tokio::io::split(tls);
             let mut stdin = StreamReader::new(FramedRead::new(

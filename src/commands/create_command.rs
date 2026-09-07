@@ -183,8 +183,13 @@ impl CreateCommand {
         let image_name = self.resolve_image(template.as_ref())?;
 
         // Fetch image
-        let image = &fetch_image_info(console, context.get_system(), env, &image_name)?;
-        fetch_image(console, context.get_system(), env, image)?;
+        let image = &context.call_async(fetch_image_info(
+            console,
+            context.get_system(),
+            env,
+            &image_name,
+        ))?;
+        context.call_async(fetch_image(console, context.get_system(), env, image))?;
 
         console.play(Arc::new(Mutex::new(Spinner::new(format!(
             "Creating {}",
