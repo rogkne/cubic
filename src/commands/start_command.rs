@@ -9,8 +9,7 @@ use crate::view::Console;
 use crate::view::{ConfirmDialog, Spinner};
 use clap::Parser;
 use std::sync::{Arc, Mutex};
-use std::thread::sleep;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Start VM instances
 ///
@@ -91,13 +90,17 @@ impl Command for StartCommand {
                 "Starting {}",
                 starting.join(", ")
             )))));
-            let deadline = Instant::now() + Duration::from_secs(300);
-            while actions.iter().any(|a| !a.is_done(context.get_system())) {
-                if Instant::now() >= deadline {
-                    console.stop();
-                    return Err(Error::StartTimeout);
+            let wait = async {
+                while actions.iter().any(|a| !a.is_done(context.get_system())) {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
-                sleep(Duration::from_secs(1));
+            };
+            if tokio::time::timeout(Duration::from_secs(300), wait)
+                .await
+                .is_err()
+            {
+                console.stop();
+                return Err(Error::StartTimeout);
             }
             console.stop()
         }
