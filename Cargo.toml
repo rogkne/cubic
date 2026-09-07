@@ -20,7 +20,7 @@ crossterm = { version = "0", default-features = false, features = ["windows"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 regex = "1"
 rcgen = { version = "0", default-features = false, features = ["pem", "ring"] }
-reqwest = { version = "0", default-features = false, features = ["rustls-tls", "blocking"] }
+reqwest = { version = "0", default-features = false, features = ["rustls-tls"] }
 russh = { version = "0", default-features = false, features = ["ring", "rsa"] }
 rustls = { version = "0", default-features = false, features = ["ring", "std"] }
 russh-sftp = "2"
