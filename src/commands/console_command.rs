@@ -37,7 +37,7 @@ pub struct ConsoleCommand {
 }
 
 impl Command for ConsoleCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         commands::StartCommand {
             qemu_args: None,
             accel: self.accel,
@@ -45,7 +45,8 @@ impl Command for ConsoleCommand {
             yes: commands::YesArg { value: false },
             instances: self.instance.value.clone().into(),
         }
-        .run(console, context)?;
+        .run(console, context)
+        .await?;
 
         let instance =
             LoadInstanceAction::new().run(context, console, self.instance.value.as_str())?;
@@ -83,7 +84,7 @@ impl Command for ConsoleCommand {
         }
 
         console.raw_mode();
-        let shell = context.call_async(async {
+        let shell = async {
             let tls = TlsClient::new(&certs)?.connect_async(port).await?;
             let (mut reader, mut writer) = tokio::io::split(tls);
             let mut stdin = StreamReader::new(FramedRead::new(
@@ -100,7 +101,8 @@ impl Command for ConsoleCommand {
             out.write_all(b"\n").await.ok();
             out.flush().await.ok();
             Ok::<(), Error>(())
-        });
+        }
+        .await;
         if shell.is_err() {
             console.error("Cannot open shell");
         }

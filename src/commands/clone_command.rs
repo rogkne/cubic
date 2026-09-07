@@ -23,7 +23,7 @@ pub struct CloneCommand {
 }
 
 impl Command for CloneCommand {
-    fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         // Verify that the target name is available
@@ -94,8 +94,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_clone_rejects_existing_target_name() {
+    #[tokio::test]
+    async fn test_clone_rejects_existing_target_name() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(vec![
@@ -113,7 +113,8 @@ mod tests {
             name: InstanceName::from_str("test").unwrap(),
             new_name: InstanceName::from_str("test2").unwrap(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(matches!(
             result,
@@ -121,8 +122,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_clone_rejects_running_source() {
+    #[tokio::test]
+    async fn test_clone_rejects_running_source() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -146,7 +147,8 @@ mod tests {
             name: InstanceName::from_str("test").unwrap(),
             new_name: InstanceName::from_str("newname").unwrap(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(matches!(
             result,
@@ -154,8 +156,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_clone_drops_the_host_key_of_the_source() {
+    #[tokio::test]
+    async fn test_clone_drops_the_host_key_of_the_source() {
         let source_image = PathBuf::from("machines")
             .join("test")
             .join("machine.img")
@@ -194,6 +196,7 @@ mod tests {
             new_name: InstanceName::from_str("test2").unwrap(),
         }
         .run(console, &context)
+        .await
         .unwrap();
 
         let stored = stored.lock().unwrap();
@@ -201,8 +204,8 @@ mod tests {
         assert_eq!(stored[0].ssh_host_key, None);
     }
 
-    #[test]
-    fn test_clone_rejects_unknown_source() {
+    #[tokio::test]
+    async fn test_clone_rejects_unknown_source() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(Vec::new());
@@ -211,7 +214,8 @@ mod tests {
             name: InstanceName::from_str("missing").unwrap(),
             new_name: InstanceName::from_str("newname").unwrap(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(matches!(
             result,

@@ -29,7 +29,7 @@ pub struct SnapshotCommand {
 }
 
 impl Command for SnapshotCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
 
@@ -86,25 +86,28 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_create_snapshot() {
+    #[tokio::test]
+    async fn test_create_snapshot() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, snapshots) = build_context(vec![build_instance()], &[]);
 
-        build_command("test/clean").run(console, &context).unwrap();
+        build_command("test/clean")
+            .run(console, &context)
+            .await
+            .unwrap();
 
         assert_eq!(*snapshots.lock().unwrap(), vec!["create test/clean"]);
     }
 
-    #[test]
-    fn test_reject_a_running_instance() {
+    #[tokio::test]
+    async fn test_reject_a_running_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, _) = build_context(vec![build_instance()], &["test"]);
 
         assert!(matches!(
-            build_command("test/clean").run(console, &context),
+            build_command("test/clean").run(console, &context).await,
             Err(Error::InstanceNotStopped(name)) if name == "test"
         ));
     }

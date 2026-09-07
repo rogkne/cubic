@@ -22,7 +22,7 @@ pub struct RenameCommand {
 }
 
 impl Command for RenameCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         instance_store.rename(
@@ -55,8 +55,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_rename_rejects_unknown_instance() {
+    #[tokio::test]
+    async fn test_rename_rejects_unknown_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(Vec::new());
@@ -65,7 +65,8 @@ mod tests {
             old_name: InstanceName::from_str("missing").unwrap(),
             new_name: InstanceName::from_str("newname").unwrap(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(matches!(
             result,
@@ -73,8 +74,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_rename_delegates_to_store() {
+    #[tokio::test]
+    async fn test_rename_delegates_to_store() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(vec![Instance {
@@ -86,7 +87,8 @@ mod tests {
             old_name: InstanceName::from_str("test").unwrap(),
             new_name: InstanceName::from_str("newname").unwrap(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(result.is_ok());
     }

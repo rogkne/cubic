@@ -23,14 +23,15 @@ pub struct RestartCommand {
 }
 
 impl Command for RestartCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         commands::StopCommand {
             all: false.into(),
             wait: true,
             kill: false,
             instances: self.instances.value.clone().into(),
         }
-        .run(console, context)?;
+        .run(console, context)
+        .await?;
         commands::StartCommand {
             qemu_args: None,
             accel: self.accel,
@@ -39,6 +40,7 @@ impl Command for RestartCommand {
             instances: self.instances.value.clone().into(),
         }
         .run(console, context)
+        .await
     }
 }
 

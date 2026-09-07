@@ -17,14 +17,9 @@ pub struct ShowImageCommand {
 }
 
 impl Command for ShowImageCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
-        let image = context.call_async(fetch_image_info(
-            console,
-            context.get_system(),
-            env,
-            &self.name,
-        ))?;
+        let image = fetch_image_info(console, context.get_system(), env, &self.name).await?;
 
         let mut view = MapView::new();
         view.add("Name", &image.get_image_name());

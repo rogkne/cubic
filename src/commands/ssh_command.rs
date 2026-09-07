@@ -27,7 +27,7 @@ pub struct SshCommand {
 }
 
 impl Command for SshCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
 
         let name = self.target.get_instance();
@@ -39,7 +39,8 @@ impl Command for SshCommand {
             yes: commands::YesArg { value: false },
             instances: name.clone().into(),
         }
-        .run(console, context)?;
+        .run(console, context)
+        .await?;
 
         let instance = LoadInstanceAction::new().run(context, console, name.as_str())?;
         console.play(Arc::new(Mutex::new(Spinner::new(format!(
@@ -60,15 +61,11 @@ impl Command for SshCommand {
         let mut ssh = SshClient::new(context);
         ssh.set_private_keys(env.get_home_ssh_private_key_paths(context.get_system()));
         ssh.set_env_vars(self.env_args.env_vars.clone());
-        let channel = context.call_async(ssh.open_channel(
-            console,
-            &instance.name,
-            &client_key,
-            &user,
-            ssh_port,
-        ))?;
+        let channel = ssh
+            .open_channel(console, &instance.name, &client_key, &user, ssh_port)
+            .await?;
         console.stop();
-        context.call_async(ssh.shell(console, &instance.name, channel))?;
+        ssh.shell(console, &instance.name, channel).await?;
         Ok(())
     }
 }

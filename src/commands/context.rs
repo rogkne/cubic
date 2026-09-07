@@ -1,15 +1,12 @@
 use crate::instance::InstanceStore;
 use crate::models::Environment;
 use crate::platform::System;
-use crate::util::AsyncCaller;
-use std::future::Future;
 use std::rc::Rc;
 
 pub struct Context {
     system: Rc<dyn System>,
     env: Environment,
     instance_store: Box<dyn InstanceStore>,
-    async_caller: AsyncCaller,
 }
 
 impl Context {
@@ -22,12 +19,7 @@ impl Context {
             system,
             env,
             instance_store,
-            async_caller: AsyncCaller::new(),
         }
-    }
-
-    pub fn call_async<F: Future>(&self, future: F) -> F::Output {
-        self.async_caller.call(future)
     }
 
     pub fn get_system(&self) -> &dyn System {

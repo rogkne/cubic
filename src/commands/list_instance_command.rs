@@ -30,7 +30,7 @@ pub struct ListInstanceCommand {
 }
 
 impl Command for ListInstanceCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -131,14 +131,15 @@ mod tests {
         ]
     }
 
-    #[test]
-    fn test_list_instance_command() {
+    #[tokio::test]
+    async fn test_list_instance_command() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(build_instances());
 
         ListInstanceCommand { all: false.into() }
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -151,14 +152,15 @@ test2   amd64      5      0 B       5000 B        no
         );
     }
 
-    #[test]
-    fn test_list_instance_command_all_adds_the_pid_column() {
+    #[tokio::test]
+    async fn test_list_instance_command_all_adds_the_pid_column() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(build_instances());
 
         ListInstanceCommand { all: true.into() }
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -171,8 +173,8 @@ PID   Name    Arch    CPUs   Memory         Disk   Running
         );
     }
 
-    #[test]
-    fn test_list_instance_command_all_shows_the_pid_of_a_running_instance() {
+    #[tokio::test]
+    async fn test_list_instance_command_all_shows_the_pid_of_a_running_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context_with_store(
@@ -182,6 +184,7 @@ PID   Name    Arch    CPUs   Memory         Disk   Running
 
         ListInstanceCommand { all: true.into() }
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -194,14 +197,15 @@ PID    Name    Arch    CPUs   Memory         Disk   Running
         );
     }
 
-    #[test]
-    fn test_list_instance_command_empty() {
+    #[tokio::test]
+    async fn test_list_instance_command_empty() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(Vec::new());
 
         ListInstanceCommand { all: false.into() }
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(

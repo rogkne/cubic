@@ -71,6 +71,8 @@ pub use yes_arg::*;
 use crate::error::Result;
 use crate::view::Console;
 
+// The runtime is single threaded, so the returned futures never need Send.
+#[allow(async_fn_in_trait)]
 trait Command {
-    fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()>;
+    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()>;
 }

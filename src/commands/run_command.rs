@@ -64,15 +64,16 @@ impl RunCommand {
 }
 
 impl Command for RunCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
-        self.create_cmd.create(console, context, self.rm)?;
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+        self.create_cmd.create(console, context, self.rm).await?;
 
         let result = commands::SshCommand {
             target: Target::from_instance_name(self.create_cmd.instance_name.value.clone()),
             accel: self.accel,
             env_args: self.env_args.clone(),
         }
-        .run(console, context);
+        .run(console, context)
+        .await;
 
         if self.rm {
             self.cleanup(console, context);

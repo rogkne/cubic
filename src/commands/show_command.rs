@@ -68,18 +68,24 @@ pub struct ShowCommand {
 }
 
 impl Command for ShowCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         match &self.name {
-            Either::Left(instance) => commands::ShowInstanceCommand {
-                instance: instance.clone().into(),
-                all: self.all.value.into(),
+            Either::Left(instance) => {
+                commands::ShowInstanceCommand {
+                    instance: instance.clone().into(),
+                    all: self.all.value.into(),
+                }
+                .run(console, context)
+                .await
             }
-            .run(console, context),
-            Either::Right(name) => commands::ShowImageCommand {
-                name: name.clone(),
-                all: self.all.value.into(),
+            Either::Right(name) => {
+                commands::ShowImageCommand {
+                    name: name.clone(),
+                    all: self.all.value.into(),
+                }
+                .run(console, context)
+                .await
             }
-            .run(console, context),
         }
     }
 }
@@ -107,8 +113,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_show_routes_plain_name_to_instance_view() {
+    #[tokio::test]
+    async fn test_show_routes_plain_name_to_instance_view() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(vec![Instance {
@@ -121,13 +127,14 @@ mod tests {
             all: false.into(),
         }
         .run(console, &context)
+        .await
         .unwrap();
 
         assert!(system.get_output().starts_with("Running:"));
     }
 
-    #[test]
-    fn test_show_rejects_unknown_instance() {
+    #[tokio::test]
+    async fn test_show_rejects_unknown_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(Vec::new());
@@ -136,7 +143,8 @@ mod tests {
             name: "missing".parse().unwrap(),
             all: false.into(),
         }
-        .run(console, &context);
+        .run(console, &context)
+        .await;
 
         assert!(matches!(
             result,

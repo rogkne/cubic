@@ -75,7 +75,7 @@ impl DeleteCommand {
 }
 
 impl Command for DeleteCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         if self.targets.is_empty() {
@@ -118,7 +118,8 @@ impl Command for DeleteCommand {
                 kill: Self::is_instance(target),
                 instances: vec![instance_name.clone()].into(),
             }
-            .run(console, context)?;
+            .run(console, context)
+            .await?;
 
             let instance =
                 LoadInstanceAction::new().run(context, console, instance_name.as_str())?;
@@ -192,26 +193,30 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_delete_instance() {
+    #[tokio::test]
+    async fn test_delete_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
-        build_command(&["test"]).run(console, &context).unwrap();
+        build_command(&["test"])
+            .run(console, &context)
+            .await
+            .unwrap();
 
         assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
         assert!(recorders.snapshots.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn test_delete_snapshot_keeps_the_instance() {
+    #[tokio::test]
+    async fn test_delete_snapshot_keeps_the_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean"])
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -221,14 +226,15 @@ mod tests {
         assert!(recorders.deleted.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn test_delete_ignores_duplicate_targets() {
+    #[tokio::test]
+    async fn test_delete_ignores_duplicate_targets() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean", "test/clean"])
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -237,40 +243,41 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_delete_instance_skips_its_own_snapshot() {
+    #[tokio::test]
+    async fn test_delete_instance_skips_its_own_snapshot() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
 
         build_command(&["test/clean", "test"])
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
         assert!(recorders.snapshots.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn test_reject_an_empty_target_list() {
+    #[tokio::test]
+    async fn test_reject_an_empty_target_list() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, _) = build_context(Vec::new());
 
         assert!(matches!(
-            build_command(&[]).run(console, &context),
+            build_command(&[]).run(console, &context).await,
             Err(Error::MissingInstanceName)
         ));
     }
 
-    #[test]
-    fn test_reject_an_unknown_snapshot() {
+    #[tokio::test]
+    async fn test_reject_an_unknown_snapshot() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, recorders) = build_context(vec![build_instance("test", vec!["deps"])]);
 
         assert!(matches!(
-            build_command(&["test/clean"]).run(console, &context),
+            build_command(&["test/clean"]).run(console, &context).await,
             Err(Error::UnknownSnapshot(instance, snapshot))
                 if instance == "test" && snapshot == "clean"
         ));

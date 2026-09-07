@@ -40,7 +40,7 @@ pub struct StopCommand {
 }
 
 impl Command for StopCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
 
         if !self.all.value {
@@ -105,8 +105,8 @@ mod tests {
         assert!(StopCommand::try_parse_from(["stop", "../../etc"]).is_err());
     }
 
-    #[test]
-    fn test_reject_empty_instance_list_without_all() {
+    #[tokio::test]
+    async fn test_reject_empty_instance_list_without_all() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -127,13 +127,14 @@ mod tests {
                 kill: false,
                 instances: Vec::new().into(),
             }
-            .run(console, &context),
+            .run(console, &context)
+            .await,
             Err(Error::MissingInstanceName)
         ));
     }
 
-    #[test]
-    fn test_allow_empty_instance_list_with_all() {
+    #[tokio::test]
+    async fn test_allow_empty_instance_list_with_all() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -155,6 +156,7 @@ mod tests {
                 instances: Vec::new().into(),
             }
             .run(console, &context)
+            .await
             .is_ok()
         );
     }

@@ -46,7 +46,7 @@ pub struct StartCommand {
 }
 
 impl Command for StartCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         self.instances.require_names()?;
 
         let instance_store = context.get_instance_store();
@@ -212,8 +212,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_reassigns_an_ssh_port_that_is_taken() {
+    #[tokio::test]
+    async fn test_reassigns_an_ssh_port_that_is_taken() {
         let system = Rc::new(
             SystemMock::new()
                 .set_host_resources(GIB as u64, GIB as u64, 8)
@@ -225,7 +225,7 @@ mod tests {
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
 
         assert!(matches!(
-            command.run(&mut console, &context),
+            command.run(&mut console, &context).await,
             Err(Error::NotEnoughMemory(_))
         ));
         // Read back through the dao, so the new port has to have been written
@@ -233,8 +233,8 @@ mod tests {
         assert_ne!(build_dao(&system).load("test").unwrap().ssh_port, 22000);
     }
 
-    #[test]
-    fn test_keeps_an_ssh_port_that_is_free() {
+    #[tokio::test]
+    async fn test_keeps_an_ssh_port_that_is_free() {
         let system = Rc::new(
             SystemMock::new()
                 .set_host_resources(GIB as u64, GIB as u64, 8)
@@ -245,7 +245,7 @@ mod tests {
         let command = StartCommand::try_parse_from(["start", "--yes", "test"]).unwrap();
 
         assert!(matches!(
-            command.run(&mut console, &context),
+            command.run(&mut console, &context).await,
             Err(Error::NotEnoughMemory(_))
         ));
         assert_eq!(build_dao(&system).load("test").unwrap().ssh_port, 22000);

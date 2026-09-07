@@ -73,7 +73,7 @@ pub struct ScpCommand {
 }
 
 impl Command for ScpCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         check_target_is_running(context, console, &self.from)?;
         check_target_is_running(context, console, &self.to)?;
 
@@ -93,13 +93,8 @@ impl Command for ScpCommand {
 
         let mut ssh = SshClient::new(context);
         ssh.set_private_keys(env.get_home_ssh_private_key_paths(context.get_system()));
-        context.call_async(ssh.copy(
-            console,
-            &from,
-            from_key.as_deref(),
-            &to,
-            to_key.as_deref(),
-        ))?;
+        ssh.copy(console, &from, from_key.as_deref(), &to, to_key.as_deref())
+            .await?;
         Ok(())
     }
 }
