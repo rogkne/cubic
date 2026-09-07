@@ -17,7 +17,7 @@ pub struct ShowInstanceCommand {
 }
 
 impl Command for ShowInstanceCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
         let instance_store = context.get_instance_store();
 
@@ -100,8 +100,8 @@ mod tests {
     use std::rc::Rc;
     use std::str::FromStr;
 
-    #[test]
-    fn test_show_basic_fields() {
+    #[tokio::test]
+    async fn test_show_basic_fields() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -128,6 +128,7 @@ mod tests {
             all: false.into(),
         }
         .run(console, &context)
+        .await
         .unwrap();
 
         assert_eq!(
@@ -146,8 +147,8 @@ Forward:    127.0.0.1:4000:40/tcp
         );
     }
 
-    #[test]
-    fn test_show_all_fields() {
+    #[tokio::test]
+    async fn test_show_all_fields() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -206,6 +207,7 @@ Forward:    127.0.0.1:4000:40/tcp
             all: true.into(),
         }
         .run(console, &context)
+        .await
         .unwrap();
 
         assert_eq!(
@@ -236,8 +238,8 @@ SSH:          ssh -i {ssh_key} -p 8000 john@localhost
         );
     }
 
-    #[test]
-    fn test_show_command_failed() {
+    #[tokio::test]
+    async fn test_show_command_failed() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -254,7 +256,8 @@ SSH:          ssh -i {ssh_key} -p 8000 john@localhost
                 instance: InstanceName::from_str("test").unwrap().into(),
                 all: false.into(),
             }
-            .run(console, &context),
+            .run(console, &context)
+            .await,
             Err(Error::UnknownInstance(_))
         ));
     }

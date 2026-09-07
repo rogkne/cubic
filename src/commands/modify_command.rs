@@ -67,7 +67,7 @@ pub struct ModifyCommand {
 }
 
 impl Command for ModifyCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let mut instance =
             LoadInstanceAction::new().run(context, console, self.instance.value.as_str())?;
@@ -138,8 +138,8 @@ mod tests {
         assert!(ModifyCommand::try_parse_from(["modify", "../../etc"]).is_err());
     }
 
-    #[test]
-    fn test_modify_stopped_instance_prints_nothing() {
+    #[tokio::test]
+    async fn test_modify_stopped_instance_prints_nothing() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(InstanceStoreMock::new(vec![Instance {
@@ -150,13 +150,14 @@ mod tests {
         ModifyCommand::try_parse_from(["modify", "test", "--cpus", "2"])
             .unwrap()
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(system.get_output(), "");
     }
 
-    #[test]
-    fn test_modify_running_instance_notes_restart() {
+    #[tokio::test]
+    async fn test_modify_running_instance_notes_restart() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(InstanceStoreMock::new_with_running(
@@ -170,6 +171,7 @@ mod tests {
         ModifyCommand::try_parse_from(["modify", "test", "--cpus", "2"])
             .unwrap()
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(
@@ -178,8 +180,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_modify_running_instance_port_attempts_live_apply() {
+    #[tokio::test]
+    async fn test_modify_running_instance_port_attempts_live_apply() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(InstanceStoreMock::new_with_running(
@@ -196,7 +198,8 @@ mod tests {
         // is never printed.
         let result = ModifyCommand::try_parse_from(["modify", "test", "--port", "8080:80"])
             .unwrap()
-            .run(console, &context);
+            .run(console, &context)
+            .await;
 
         assert!(result.is_err());
         assert_eq!(system.get_output(), "");

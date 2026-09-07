@@ -101,7 +101,7 @@ pub struct CommandDispatcher {
 }
 
 impl CommandDispatcher {
-    pub fn dispatch(self, system: Rc<dyn System>, console: &mut Console<'_>) -> Result<()> {
+    pub async fn dispatch(self, system: Rc<dyn System>, console: &mut Console<'_>) -> Result<()> {
         let Some(command) = self.command else {
             println!("{}", CommandDispatcher::command().render_long_help());
             return Ok(());
@@ -119,29 +119,28 @@ impl CommandDispatcher {
         );
 
         let result = match &command {
-            Commands::Run(cmd) => cmd as &dyn Command,
-            Commands::Instances(cmd) => cmd,
-            Commands::Images(cmd) => cmd,
-            Commands::Ports(cmd) => cmd,
-            Commands::Create(cmd) => cmd,
-            Commands::Modify(cmd) => cmd,
-            Commands::Clone(cmd) => cmd,
-            Commands::Snapshot(cmd) => cmd,
-            Commands::Restore(cmd) => cmd,
-            Commands::Rename(cmd) => cmd,
-            Commands::Show(cmd) => cmd,
-            Commands::Start(cmd) => cmd,
-            Commands::Stop(cmd) => cmd,
-            Commands::Restart(cmd) => cmd,
-            Commands::Console(cmd) => cmd,
-            Commands::Ssh(cmd) => cmd,
-            Commands::Scp(cmd) => cmd,
-            Commands::Exec(cmd) => cmd,
-            Commands::Delete(cmd) => cmd,
-            Commands::Prune(cmd) => cmd,
-            Commands::Completions(cmd) => cmd,
-        }
-        .run(console, context);
+            Commands::Run(cmd) => cmd.run(console, context).await,
+            Commands::Instances(cmd) => cmd.run(console, context).await,
+            Commands::Images(cmd) => cmd.run(console, context).await,
+            Commands::Ports(cmd) => cmd.run(console, context).await,
+            Commands::Create(cmd) => cmd.run(console, context).await,
+            Commands::Modify(cmd) => cmd.run(console, context).await,
+            Commands::Clone(cmd) => cmd.run(console, context).await,
+            Commands::Snapshot(cmd) => cmd.run(console, context).await,
+            Commands::Restore(cmd) => cmd.run(console, context).await,
+            Commands::Rename(cmd) => cmd.run(console, context).await,
+            Commands::Show(cmd) => cmd.run(console, context).await,
+            Commands::Start(cmd) => cmd.run(console, context).await,
+            Commands::Stop(cmd) => cmd.run(console, context).await,
+            Commands::Restart(cmd) => cmd.run(console, context).await,
+            Commands::Console(cmd) => cmd.run(console, context).await,
+            Commands::Ssh(cmd) => cmd.run(console, context).await,
+            Commands::Scp(cmd) => cmd.run(console, context).await,
+            Commands::Exec(cmd) => cmd.run(console, context).await,
+            Commands::Delete(cmd) => cmd.run(console, context).await,
+            Commands::Prune(cmd) => cmd.run(console, context).await,
+            Commands::Completions(cmd) => cmd.run(console, context).await,
+        };
 
         // Clear any animation the command left running, including on error.
         console.stop();

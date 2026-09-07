@@ -20,7 +20,7 @@ pub struct PruneCommand {
 }
 
 impl Command for PruneCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let env = context.get_env();
         let system = context.get_system();
 
@@ -84,18 +84,19 @@ mod tests {
         )
     }
 
-    fn run_prune(system: &Rc<SystemMock>, env: &Environment) -> String {
+    async fn run_prune(system: &Rc<SystemMock>, env: &Environment) -> String {
         let console = &mut Console::new(system.as_ref());
         PruneCommand {
             yes: commands::YesArg { value: true },
         }
         .run(console, &build_context(system, env))
+        .await
         .unwrap();
         system.get_output()
     }
 
-    #[test]
-    fn test_delete_the_image_cache_and_the_legacy_cache_instance_dir() {
+    #[tokio::test]
+    async fn test_delete_the_image_cache_and_the_legacy_cache_instance_dir() {
         let env = build_env();
         let system = Rc::new(
             SystemMock::new()
@@ -104,26 +105,26 @@ mod tests {
                 .add_file("/cache/instances/test/user-data.img", b"seed"),
         );
 
-        run_prune(&system, &env);
+        run_prune(&system, &env).await;
 
         assert!(!system.exists_path(Path::new(&env.get_image_cache_file())));
         assert!(!system.exists_path(Path::new(&env.get_image_dir())));
         assert!(!system.exists_path(Path::new("/cache/instances")));
     }
 
-    #[test]
-    fn test_keep_the_instance_data_dir() {
+    #[tokio::test]
+    async fn test_keep_the_instance_data_dir() {
         let env = build_env();
         let instance_file = format!("{}/cloud-init.iso", env.get_instance_dir2("test"));
         let system = Rc::new(SystemMock::new().add_file(&instance_file, b"seed"));
 
-        run_prune(&system, &env);
+        run_prune(&system, &env).await;
 
         assert!(system.exists_path(Path::new(&instance_file)));
     }
 
-    #[test]
-    fn test_report_the_size_of_everything_it_deletes() {
+    #[tokio::test]
+    async fn test_report_the_size_of_everything_it_deletes() {
         let env = build_env();
         let system = Rc::new(
             SystemMock::new()
@@ -131,6 +132,6 @@ mod tests {
                 .add_file("/cache/instances/test/user-data.img", &[0; 1024]),
         );
 
-        assert!(run_prune(&system, &env).contains("frees 2048 B"));
+        assert!(run_prune(&system, &env).await.contains("frees 2048 B"));
     }
 }

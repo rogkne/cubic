@@ -160,7 +160,7 @@ impl CreateCommand {
 }
 
 impl CreateCommand {
-    pub fn create(
+    pub async fn create(
         &self,
         console: &mut Console<'_>,
         context: &Context,
@@ -183,13 +183,8 @@ impl CreateCommand {
         let image_name = self.resolve_image(template.as_ref())?;
 
         // Fetch image
-        let image = &context.call_async(fetch_image_info(
-            console,
-            context.get_system(),
-            env,
-            &image_name,
-        ))?;
-        context.call_async(fetch_image(console, context.get_system(), env, image))?;
+        let image = &fetch_image_info(console, context.get_system(), env, &image_name).await?;
+        fetch_image(console, context.get_system(), env, image).await?;
 
         console.play(Arc::new(Mutex::new(Spinner::new(format!(
             "Creating {}",
@@ -227,8 +222,8 @@ impl CreateCommand {
 }
 
 impl Command for CreateCommand {
-    fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
-        self.create(console, context, false)
+    async fn run(&self, console: &mut Console<'_>, context: &Context) -> Result<()> {
+        self.create(console, context, false).await
     }
 }
 
@@ -242,8 +237,8 @@ mod tests {
 
     const GIB: usize = 1024_usize.pow(3);
 
-    #[test]
-    fn test_create_rejects_existing_instance_name() {
+    #[tokio::test]
+    async fn test_create_rejects_existing_instance_name() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let env = Environment::new(
@@ -262,7 +257,8 @@ mod tests {
 
         let result = CreateCommand::try_parse_from(["create", "test", "-i", "debian:bookworm"])
             .unwrap()
-            .run(console, &context);
+            .run(console, &context)
+            .await;
 
         assert!(matches!(
             result,

@@ -28,7 +28,7 @@ use clap::Parser;
 pub struct ListPortCommand;
 
 impl Command for ListPortCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -100,19 +100,19 @@ No port forwarding rules are configured.
 Add one with cubic modify <instance> --port <host_port>:<guest_port>
 ";
 
-    #[test]
-    fn test_list_ports_without_instances_explains_how_to_add_a_rule() {
+    #[tokio::test]
+    async fn test_list_ports_without_instances_explains_how_to_add_a_rule() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(Vec::new());
 
-        ListPortCommand {}.run(console, &context).unwrap();
+        ListPortCommand {}.run(console, &context).await.unwrap();
 
         assert_eq!(system.get_output(), NO_RULES);
     }
 
-    #[test]
-    fn test_list_ports_without_rules_explains_how_to_add_a_rule() {
+    #[tokio::test]
+    async fn test_list_ports_without_rules_explains_how_to_add_a_rule() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(vec![Instance {
@@ -121,13 +121,13 @@ Add one with cubic modify <instance> --port <host_port>:<guest_port>
             ..Instance::default()
         }]);
 
-        ListPortCommand {}.run(console, &context).unwrap();
+        ListPortCommand {}.run(console, &context).await.unwrap();
 
         assert_eq!(system.get_output(), NO_RULES);
     }
 
-    #[test]
-    fn test_list_ports_skips_instances_without_rules() {
+    #[tokio::test]
+    async fn test_list_ports_skips_instances_without_rules() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let context = build_context(vec![
@@ -144,7 +144,7 @@ Add one with cubic modify <instance> --port <host_port>:<guest_port>
             },
         ]);
 
-        ListPortCommand {}.run(console, &context).unwrap();
+        ListPortCommand {}.run(console, &context).await.unwrap();
 
         assert_eq!(
             system.get_output(),

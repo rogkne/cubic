@@ -36,7 +36,7 @@ pub struct RestoreCommand {
 }
 
 impl Command for RestoreCommand {
-    fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &mut Console<'_>, context: &commands::Context) -> Result<()> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
         let snapshot_name = self.snapshot.as_str();
@@ -63,7 +63,8 @@ impl Command for RestoreCommand {
             kill: true,
             instances: vec![instance_name.clone()].into(),
         }
-        .run(console, context)?;
+        .run(console, context)
+        .await?;
 
         instance_store.restore_snapshot(&instance, snapshot_name)?;
 
@@ -116,21 +117,22 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_restore_snapshot() {
+    #[tokio::test]
+    async fn test_restore_snapshot() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, snapshots) = build_context(vec![build_instance(vec!["clean"])]);
 
         build_command("test/clean", true)
             .run(console, &context)
+            .await
             .unwrap();
 
         assert_eq!(*snapshots.lock().unwrap(), vec!["restore test/clean"]);
     }
 
-    #[test]
-    fn test_a_declined_confirmation_leaves_the_disk_alone() {
+    #[tokio::test]
+    async fn test_a_declined_confirmation_leaves_the_disk_alone() {
         let system = SystemMock::new();
         system.push_input("n");
         let console = &mut Console::new(&system);
@@ -138,31 +140,32 @@ mod tests {
 
         build_command("test/clean", false)
             .run(console, &context)
+            .await
             .unwrap();
 
         assert!(snapshots.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn test_reject_an_unknown_instance() {
+    #[tokio::test]
+    async fn test_reject_an_unknown_instance() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, _) = build_context(Vec::new());
 
         assert!(matches!(
-            build_command("test/clean", true).run(console, &context),
+            build_command("test/clean", true).run(console, &context).await,
             Err(Error::UnknownInstance(name)) if name == "test"
         ));
     }
 
-    #[test]
-    fn test_reject_an_unknown_snapshot() {
+    #[tokio::test]
+    async fn test_reject_an_unknown_snapshot() {
         let system = SystemMock::new();
         let console = &mut Console::new(&system);
         let (context, _) = build_context(vec![build_instance(vec!["deps"])]);
 
         assert!(matches!(
-            build_command("test/clean", true).run(console, &context),
+            build_command("test/clean", true).run(console, &context).await,
             Err(Error::UnknownSnapshot(instance, snapshot))
                 if instance == "test" && snapshot == "clean"
         ));

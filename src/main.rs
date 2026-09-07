@@ -20,7 +20,8 @@ use clap::Parser;
 use std::process::ExitCode;
 use std::rc::Rc;
 
-fn main() -> ExitCode {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> ExitCode {
     // Disable raw mode before the default panic hook runs, so a panic during
     // an interactive session (ssh, console) does not leave the terminal
     // broken. This also covers panic = 'abort' builds, since the hook runs
@@ -33,7 +34,10 @@ fn main() -> ExitCode {
 
     let system: Rc<dyn System> = Rc::new(OsSystem::new());
     let console = &mut view::Console::new(system.as_ref());
-    match CommandDispatcher::parse().dispatch(Rc::clone(&system), console) {
+    match CommandDispatcher::parse()
+        .dispatch(Rc::clone(&system), console)
+        .await
+    {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             console.error(&e.to_string());
