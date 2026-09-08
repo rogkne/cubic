@@ -5,10 +5,10 @@ use crate::instance::InstanceStore;
 use crate::models::{DataSize, HOST_MEMORY_RESERVE, Instance, ResourceAllocator};
 use crate::platform::System;
 use crate::ssh::PortChecker;
-use crate::view::Console;
-use crate::view::{ConfirmDialog, Spinner};
+use crate::view::ConfirmDialog;
+use crate::view::{Console, Spinner};
 use clap::Parser;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Start VM instances
@@ -86,10 +86,8 @@ impl Command for StartCommand {
 
         // Wait for virtual machine instances to be started
         if self.wait && !starting.is_empty() {
-            console.play(Arc::new(Mutex::new(Spinner::new(format!(
-                "Starting {}",
-                starting.join(", ")
-            )))));
+            let text = format!("Starting {}", starting.join(", "));
+            let _spinner = Spinner::new(Arc::clone(console), text);
             let wait = async {
                 while actions.iter().any(|a| !a.is_done(context.get_system())) {
                     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -99,10 +97,8 @@ impl Command for StartCommand {
                 .await
                 .is_err()
             {
-                console.stop();
                 return Err(Error::StartTimeout);
             }
-            console.stop()
         }
 
         Ok(())

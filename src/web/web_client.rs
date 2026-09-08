@@ -1,12 +1,12 @@
 use crate::error::{Error, Result};
 use crate::models::HashAlg;
 use crate::platform::System;
-use crate::view::TransferView;
+use crate::view::{Console, TransferView};
 use crate::web::Hasher;
 use reqwest::Client;
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 const REQUEST_TIMEOUT_SEC: u64 = 30;
@@ -16,7 +16,8 @@ struct ProgressWriter {
     file: BufWriter<Box<dyn Write>>,
     size: Option<u64>,
     written: u64,
-    view: Arc<Mutex<TransferView>>,
+    view: TransferView,
+    console: Arc<Console>,
     hasher: Hasher,
 }
 
@@ -24,7 +25,8 @@ impl ProgressWriter {
     pub fn new(
         file: Box<dyn Write>,
         size: Option<u64>,
-        view: Arc<Mutex<TransferView>>,
+        view: TransferView,
+        console: Arc<Console>,
         hash_alg: HashAlg,
     ) -> Self {
         Self {
@@ -32,6 +34,7 @@ impl ProgressWriter {
             size,
             written: 0,
             view,
+            console,
             hasher: Hasher::new(hash_alg),
         }
     }
@@ -41,10 +44,9 @@ impl io::Write for ProgressWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.written += buf.len() as u64;
         self.hasher.update(buf);
-        self.view
-            .lock()
-            .unwrap()
-            .set_progress(self.written, self.size);
+        self.view.set_progress(self.written, self.size);
+        self.console
+            .update_animation(&self.view.render(self.console.width()));
         self.file.write(buf)
     }
 
@@ -86,7 +88,8 @@ impl WebClient {
         system: &dyn System,
         url: &str,
         file_path: &Path,
-        view: Arc<Mutex<TransferView>>,
+        view: TransferView,
+        console: Arc<Console>,
         hash_alg: HashAlg,
     ) -> Result<String> {
         // Appends rather than replacing the extension, so an image named
@@ -108,6 +111,7 @@ impl WebClient {
             system.create_file(&temp_file)?,
             resp.content_length(),
             view,
+            console,
             hash_alg,
         );
         while let Some(chunk) = resp.chunk().await.map_err(Error::from)? {

@@ -4,22 +4,18 @@ use crate::models::{Environment, Image, ImageName};
 use crate::platform::System;
 use crate::view::{Console, Spinner};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub async fn fetch_image_list(
     console: &Arc<Console>,
     system: &dyn System,
     env: &Environment,
 ) -> Vec<Image> {
-    console.play(Arc::new(Mutex::new(Spinner::new(
-        "Fetching image list".to_string(),
-    ))));
-    let images: Vec<Image> = ImageFactory::new(system, env)
+    let _spinner = Spinner::new(Arc::clone(console), "Fetching image list".to_string());
+    ImageFactory::new(system, env)
         .get_all_images(console)
         .await
-        .unwrap_or_default();
-    console.stop();
-    images
+        .unwrap_or_default()
 }
 
 pub async fn fetch_image_info(
@@ -28,16 +24,12 @@ pub async fn fetch_image_info(
     env: &Environment,
     image: &ImageName,
 ) -> Result<Image> {
-    console.play(Arc::new(Mutex::new(Spinner::new(format!(
-        "Looking up image {}:{}",
-        image.get_distro(),
-        image.get_name()
-    )))));
-    let image = ImageFactory::new(system, env)
+    let (distro, name) = (image.get_distro(), image.get_name());
+    let text = format!("Looking up image {distro}:{name}");
+    let _spinner = Spinner::new(Arc::clone(console), text);
+    ImageFactory::new(system, env)
         .find_image(console, image)
-        .await;
-    console.stop();
-    image
+        .await
 }
 
 pub async fn fetch_image(

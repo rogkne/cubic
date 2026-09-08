@@ -1,5 +1,5 @@
 use crate::models::DataSize;
-use crate::view::{Animation, ProgressBar};
+use crate::view::ProgressBar;
 
 const TEXT_WIDTH: usize = 30;
 const MIN_BAR_WIDTH: usize = 10;
@@ -23,10 +23,8 @@ impl TransferView {
         self.transferred_bytes = transferred_bytes;
         self.total_bytes = total_bytes;
     }
-}
 
-impl Animation for TransferView {
-    fn render(&mut self, width: usize) -> String {
+    pub fn render(&self, width: usize) -> String {
         let text = format!("{:TEXT_WIDTH$.TEXT_WIDTH$}", self.message);
 
         let Some(total_bytes) = self.total_bytes else {

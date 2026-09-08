@@ -13,7 +13,9 @@ impl ConfirmDialog {
     }
 
     pub fn confirm(&self, console: &Arc<Console>) -> bool {
-        let reply = console.prompt(&format!("{} [y/N]: ", self.message));
+        let reply = console
+            .prompt(&format!("{} [y/N]: ", self.message), false)
+            .unwrap_or_default();
         matches!(reply.to_lowercase().as_str(), "y" | "yes")
     }
 }
