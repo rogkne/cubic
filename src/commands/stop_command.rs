@@ -1,10 +1,9 @@
 use crate::actions::{LoadInstanceAction, StopInstanceAction};
 use crate::commands::{self, Command};
 use crate::error::Result;
-use crate::view::Console;
-use crate::view::Spinner;
+use crate::view::{Console, Spinner};
 use clap::Parser;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Stop VM instances
@@ -61,14 +60,12 @@ impl Command for StopCommand {
             }
         }
 
-        console.play(Arc::new(Mutex::new(Spinner::new(format!(
-            "Stopping {}",
-            stopping
-                .iter()
-                .map(|instance| instance.name.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )))));
+        let names = stopping
+            .iter()
+            .map(|instance| instance.name.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _spinner = Spinner::new(Arc::clone(console), format!("Stopping {names}"));
 
         // Stop instances
         let mut actions = Vec::new();

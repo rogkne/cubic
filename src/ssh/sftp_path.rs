@@ -4,7 +4,7 @@ use russh_sftp::{self, client::SftpSession};
 use std::cmp::max;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{self, fs};
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -138,14 +138,18 @@ impl SftpPath {
         content: Box<dyn AsyncRead + Unpin>,
     ) -> Result<()> {
         let name = &format!("{:30}", &name[max(30, name.len()) - 30..name.len()]);
-        let view = Arc::new(Mutex::new(TransferView::new(name)));
-        console.play(view.clone());
-        let read = &mut AsyncTransferView::new(view, std::pin::Pin::new(content), size);
+        let view = TransferView::new(name);
+        let read = &mut AsyncTransferView::new(
+            Arc::clone(console),
+            view,
+            std::pin::Pin::new(content),
+            size,
+        );
         let result = tokio::io::copy(read, &mut self.create_file().await?)
             .await
             .map(|_| ())
             .map_err(|e| Error::from_fs(FsOperation::WriteFile, &self.path, e));
-        console.stop();
+        console.clear_animation();
         result
     }
 

@@ -1,4 +1,3 @@
-mod animation;
 mod async_transfer_view;
 mod confirm_dialog;
 mod console;
@@ -8,7 +7,6 @@ mod spinner;
 mod table_view;
 mod transfer_view;
 
-pub use animation::*;
 pub use async_transfer_view::*;
 pub use confirm_dialog::*;
 pub use console::*;

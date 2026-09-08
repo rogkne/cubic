@@ -9,11 +9,10 @@ use crate::models::{
     ResourceAllocator, Template, UserName,
 };
 use crate::platform::System;
-use crate::view::Console;
-use crate::view::Spinner;
+use crate::view::{Console, Spinner};
 use clap::{ArgAction, Parser};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// The disk size of a new VM instance, 100 GiB.
 pub const DEFAULT_DISK_SIZE: DataSize = DataSize::new(100 * 1024_usize.pow(3));
@@ -186,10 +185,8 @@ impl CreateCommand {
         let image = &fetch_image_info(console, context.get_system(), env, &image_name).await?;
         fetch_image(console, context.get_system(), env, image).await?;
 
-        console.play(Arc::new(Mutex::new(Spinner::new(format!(
-            "Creating {}",
-            self.instance_name.value
-        )))));
+        let text = format!("Creating {}", self.instance_name.value);
+        let _spinner = Spinner::new(Arc::clone(console), text);
         let ssh_port = context.get_system().bind_port()?;
 
         let (default_cpus, default_mem) =
@@ -216,7 +213,6 @@ impl CreateCommand {
         let image_path = &env.get_image_file(&image.to_file_name());
         CreateInstanceAction::new().run(context, image_path, instance, overlay)?;
 
-        console.stop();
         Ok(())
     }
 }

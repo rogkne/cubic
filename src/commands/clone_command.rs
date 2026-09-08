@@ -4,7 +4,7 @@ use crate::error::{Error, Result};
 use crate::models::{InstanceName, LOW_DISK_SPACE_WARNING, ResourceAllocator};
 use crate::view::{Console, Spinner};
 use clap::Parser;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Clone a VM instance
 ///
@@ -43,10 +43,8 @@ impl Command for CloneCommand {
             return Err(Error::InstanceNotStopped(source.name.to_string()));
         }
 
-        console.play(Arc::new(Mutex::new(Spinner::new(format!(
-            "Cloning {} to {}",
-            self.name, self.new_name
-        )))));
+        let text = format!("Cloning {} to {}", self.name, self.new_name);
+        let _spinner = Spinner::new(Arc::clone(console), text);
 
         // Load source instance info
         let image_path = &context
@@ -64,7 +62,6 @@ impl Command for CloneCommand {
         // Create VM instance
         CreateInstanceAction::new().run(context, image_path, target, false)?;
 
-        console.stop();
         Ok(())
     }
 }

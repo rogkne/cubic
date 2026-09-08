@@ -5,7 +5,7 @@ use crate::view::{Console, Spinner, TransferView};
 use crate::web::WebClient;
 use regex::Regex;
 use std::path::Path;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 
 static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9A-Fa-f]+$").unwrap());
 
@@ -61,28 +61,28 @@ impl ImageFetcher {
     ) -> Result<()> {
         let mut client = WebClient::new()?;
 
-        let view = Arc::new(Mutex::new(TransferView::new(&format!(
-            "Downloading {}",
-            &image.to_name()
-        ))));
-        console.play(view.clone());
+        let view = TransferView::new(&format!("Downloading {}", &image.to_name()));
         let checksum = client
-            .download_file(system, &image.image_url, target_file, view, image.hash_alg)
+            .download_file(
+                system,
+                &image.image_url,
+                target_file,
+                view,
+                Arc::clone(console),
+                image.hash_alg,
+            )
             .await?;
-        console.stop();
+        console.clear_animation();
 
         // Verify checksum
-        console.play(Arc::new(Mutex::new(Spinner::new(format!(
-            "Verify {}",
-            image.to_name()
-        )))));
         let mut valid_checksum = false;
-
-        if let Ok(Some(hashsum)) = self.fetch_checksum(&mut client, image).await {
-            valid_checksum = checksum == hashsum;
+        {
+            let _spinner = Spinner::new(Arc::clone(console), format!("Verify {}", image.to_name()));
+            if let Ok(Some(hashsum)) = self.fetch_checksum(&mut client, image).await {
+                valid_checksum = checksum == hashsum;
+            }
         }
 
-        console.stop();
         if valid_checksum {
             Ok(())
         } else {

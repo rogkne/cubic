@@ -1,19 +1,11 @@
 use crate::commands::Verbosity;
 use crate::platform::{Stream, System};
-use crate::view::Animation;
-use crossterm::QueueableCommand;
-use crossterm::cursor::MoveToColumn;
-use crossterm::style::{Attribute, Color, Print, SetAttribute, SetForegroundColor};
+use crossterm::cursor::{MoveToColumn, MoveUp};
+use crossterm::style::{Attribute, Color, SetAttribute, SetForegroundColor};
 use crossterm::terminal::{Clear, ClearType};
-use std::io::{Stdout, Write, stdout};
-use std::sync::{Arc, Condvar, Mutex};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-const ANIMATION_TICK_MS: u64 = 100;
-
-// On Windows, ANSI escape codes are only interpreted once virtual terminal
-// processing is turned on for the console; this call is a no-op elsewhere.
 #[cfg(windows)]
 fn enable_ansi_support() {
     crossterm::ansi_support::supports_ansi();
@@ -35,22 +27,13 @@ fn colorize(label: &str, color: Color, enabled: bool) -> String {
     }
 }
 
-struct AnimationState {
-    inner: Mutex<AnimationInner>,
-    signal: Condvar,
-}
-
-struct AnimationInner {
-    animation: Option<Arc<Mutex<dyn Animation>>>,
-    muted: bool,
-    shutdown: bool,
-}
-
 pub struct Console {
-    verbosity: Mutex<Verbosity>,
     is_tty: bool,
-    state: Arc<AnimationState>,
-    thread: Mutex<Option<JoinHandle<()>>>,
+    verbosity: Mutex<Verbosity>,
+    // Only flipped inside redraw so a pause lands between the clear and the draw.
+    paused: AtomicBool,
+    // Each frame line must fit the terminal width so one line takes one row.
+    frame: Mutex<String>,
     system: Arc<dyn System>,
 }
 
@@ -59,66 +42,79 @@ impl Console {
         enable_ansi_support();
         let is_tty = system.is_terminal(Stream::Stdout);
         Arc::new(Self {
-            verbosity: Mutex::new(Verbosity::new(false, false)),
             is_tty,
-            state: Arc::new(AnimationState {
-                inner: Mutex::new(AnimationInner {
-                    animation: None,
-                    muted: false,
-                    shutdown: false,
-                }),
-                signal: Condvar::new(),
-            }),
-            thread: Mutex::new(None),
+            verbosity: Mutex::new(Verbosity::new(false, false)),
+            paused: AtomicBool::new(false),
+            frame: Mutex::new(String::new()),
             system,
         })
     }
 
-    fn is_no_color(&self) -> bool {
-        self.system.read_env_var("NO_COLOR").is_some()
+    fn get_verbosity(&self) -> Verbosity {
+        *self.verbosity.lock().unwrap()
     }
 
-    // Print a message that coexists with a running animation. While an
-    // animation is playing the render thread is held off (it only writes while
-    // holding the state lock): clear its line, print the message, then redraw a
-    // fresh frame immediately so the live line stays just below the output.
+    pub fn is_enabled(&self) -> bool {
+        self.is_tty && !self.get_verbosity().is_quiet()
+    }
+
+    fn is_visible(&self, frame: &str) -> bool {
+        self.is_enabled() && !self.paused.load(Ordering::Relaxed) && !frame.is_empty()
+    }
+
+    fn clear_frame(&self, frame: &str) {
+        if !self.is_visible(frame) {
+            return;
+        }
+        let mut out = format!("{}{}", MoveToColumn(0), Clear(ClearType::CurrentLine));
+        for _ in 1..frame.split('\n').count() {
+            out.push_str(&format!("{}{}", MoveUp(1), Clear(ClearType::CurrentLine)));
+        }
+        self.write(&out);
+    }
+
+    fn draw_frame(&self, frame: &str) {
+        if !self.is_visible(frame) {
+            return;
+        }
+        self.write(&format!("{}{frame}", MoveToColumn(0)));
+    }
+
+    fn write(&self, text: &str) {
+        self.system.print(Stream::Stdout, text);
+        self.system.flush(Stream::Stdout);
+    }
+
+    pub fn update_animation(&self, frame: &str) {
+        let mut current = self.frame.lock().unwrap();
+        self.clear_frame(&current);
+        *current = frame.to_string();
+        self.draw_frame(&current);
+    }
+
+    pub fn clear_animation(&self) {
+        self.update_animation("");
+    }
+
+    fn set_paused(&self, paused: bool) {
+        let frame = self.frame.lock().unwrap();
+        self.clear_frame(&frame);
+        self.paused.store(paused, Ordering::Relaxed);
+        self.draw_frame(&frame);
+    }
+
     fn emit(&self, stream: Stream, msg: &str, style: Option<(&str, Color)>) {
-        let no_color = self.is_no_color();
-        let enabled = style.is_some() && self.system.is_terminal(stream) && !no_color;
+        let color = style.is_some()
+            && self.system.is_terminal(stream)
+            && self.system.read_env_var("NO_COLOR").is_none();
         let text = match style {
-            Some((label, color)) => format!("{} {msg}", colorize(label, color, enabled)),
+            Some((label, c)) => format!("{} {msg}", colorize(label, c, color)),
             None => msg.to_string(),
         };
-
-        let inner = self.state.inner.lock().unwrap();
-        let animation = inner.animation.clone();
-        let mut stdout = stdout();
-        if animation.is_some() {
-            AnimationState::clear_line(&mut stdout);
-        }
+        let frame = self.frame.lock().unwrap();
+        self.clear_frame(&frame);
         self.system.println(stream, &text);
-        if let Some(animation) = animation {
-            AnimationState::draw_frame(&mut stdout, &animation);
-        }
-    }
-
-    // Mute the animation render thread and clear its line so a prompt can
-    // hold it. Pairs with unmute().
-    fn mute(&self) {
-        let mut inner = self.state.inner.lock().unwrap();
-        if inner.animation.is_some() {
-            inner.muted = true;
-            AnimationState::clear_line(&mut stdout());
-        }
-    }
-
-    // Unmute the animation render thread and redraw its current frame.
-    fn unmute(&self) {
-        let mut inner = self.state.inner.lock().unwrap();
-        if let Some(animation) = inner.animation.clone() {
-            inner.muted = false;
-            AnimationState::draw_frame(&mut stdout(), &animation);
-        }
+        self.draw_frame(&frame);
     }
 
     pub fn set_verbosity(&self, verbosity: Verbosity) {
@@ -130,13 +126,13 @@ impl Console {
     }
 
     pub fn debug(&self, msg: &str) {
-        if self.verbosity.lock().unwrap().is_verbose() {
+        if self.get_verbosity().is_verbose() {
             self.emit(Stream::Stdout, msg, Some(("debug:", Color::Green)));
         }
     }
 
     pub fn info(&self, msg: &str) {
-        if !self.verbosity.lock().unwrap().is_quiet() {
+        if !self.get_verbosity().is_quiet() {
             self.emit(Stream::Stdout, msg, Some(("info:", Color::Blue)));
         }
     }
@@ -160,22 +156,21 @@ impl Console {
             .ok()
     }
 
-    pub fn prompt(&self, text: &str) -> String {
-        self.mute();
-        self.system.print(Stream::Stdout, text);
-        self.system.flush(Stream::Stdout);
-        let reply = self.system.read_input();
-        self.unmute();
-        reply
+    pub fn width(&self) -> usize {
+        self.get_geometry().map_or(80, |(w, _)| w as usize)
     }
 
-    pub fn prompt_secret(&self, text: &str) -> Result<String, ()> {
-        self.mute();
+    pub fn prompt(&self, text: &str, masked: bool) -> Result<String, ()> {
+        self.set_paused(true);
         self.system.print(Stream::Stdout, text);
         self.system.flush(Stream::Stdout);
-        let result = self.system.read_secret();
-        self.unmute();
-        result
+        let reply = if masked {
+            self.system.read_secret()
+        } else {
+            Ok(self.system.read_input())
+        };
+        self.set_paused(false);
+        reply
     }
 
     pub fn raw_mode(&self) {
@@ -185,93 +180,29 @@ impl Console {
     pub fn reset(&self) {
         self.system.reset();
     }
-
-    pub fn play(&self, animation: Arc<Mutex<dyn Animation>>) {
-        if self.verbosity.lock().unwrap().is_quiet() || !self.is_tty {
-            return;
-        }
-
-        let mut handle = self.thread.lock().unwrap();
-        if handle.is_none() {
-            let state = Arc::clone(&self.state);
-            *handle = Some(thread::spawn(move || state.run()));
-        }
-
-        let mut inner = self.state.inner.lock().unwrap();
-        inner.animation = Some(animation);
-        self.state.signal.notify_all();
-    }
-
-    pub fn stop(&self) {
-        let mut inner = self.state.inner.lock().unwrap();
-        if inner.animation.take().is_some() {
-            AnimationState::clear_line(&mut stdout());
-        }
-        self.state.signal.notify_all();
-    }
-}
-
-impl AnimationState {
-    // One reusable thread renders the current animation. It parks on the
-    // condvar while idle and ticks every ANIMATION_TICK_MS while an animation
-    // is set, skipping the draw while muted so prompt() can hold the line.
-    // The state lock is held during a render so that stop() can clear the
-    // line without racing a write.
-    fn run(self: Arc<Self>) {
-        let mut stdout = stdout();
-        let mut inner = self.inner.lock().unwrap();
-        while !inner.shutdown {
-            match inner.animation.clone() {
-                None => {
-                    inner = self.signal.wait(inner).unwrap();
-                }
-                Some(animation) => {
-                    if !inner.muted {
-                        Self::draw_frame(&mut stdout, &animation);
-                    }
-                    let timeout = Duration::from_millis(ANIMATION_TICK_MS);
-                    inner = self.signal.wait_timeout(inner, timeout).unwrap().0;
-                }
-            }
-        }
-    }
-
-    fn draw_frame(stdout: &mut Stdout, animation: &Arc<Mutex<dyn Animation>>) {
-        let width = crossterm::terminal::size()
-            .map(|(w, _)| w as usize)
-            .unwrap_or(80);
-        let line = animation.lock().unwrap().render(width);
-        Self::draw_line(stdout, &line);
-    }
-
-    fn draw_line(stdout: &mut Stdout, line: &str) {
-        stdout
-            .queue(MoveToColumn(0))
-            .and_then(|out| out.queue(Clear(ClearType::CurrentLine)))
-            .and_then(|out| out.queue(Print(line)))
-            .and_then(|out| out.flush())
-            .ok();
-    }
-
-    fn clear_line(stdout: &mut Stdout) {
-        Self::draw_line(stdout, "");
-    }
-}
-
-impl Drop for Console {
-    fn drop(&mut self) {
-        self.stop();
-        self.state.inner.lock().unwrap().shutdown = true;
-        self.state.signal.notify_all();
-        if let Some(thread) = self.thread.lock().unwrap().take() {
-            thread.join().ok();
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::SystemMock;
+
+    #[test]
+    fn test_each_frame_clears_the_one_before_it() {
+        let system = Arc::new(SystemMock::new().set_terminal(true));
+        let console = Console::new(Arc::clone(&system) as Arc<dyn System>);
+
+        console.update_animation("first");
+        console.update_animation("second");
+        console.clear_animation();
+
+        let home = MoveToColumn(0).to_string();
+        let clear = format!("{home}{}", Clear(ClearType::CurrentLine));
+        assert_eq!(
+            system.get_output(),
+            format!("{home}first{clear}{home}second{clear}")
+        );
+    }
 
     #[test]
     fn test_colorize_wraps_label_when_enabled() {

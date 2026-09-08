@@ -121,7 +121,7 @@ impl<'a> SshClient<'a> {
     ) -> Result<(), Error> {
         loop {
             let password = console
-                .prompt_secret(&format!("Enter password for {user}@{machine}: "))
+                .prompt(&format!("Enter password for {user}@{machine}: "), true)
                 .map_err(|_| Error::SshAuthCancelled(machine.to_string()))?;
 
             if session

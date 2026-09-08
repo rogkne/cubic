@@ -5,7 +5,7 @@ use crate::models::Target;
 use crate::ssh::SshClient;
 use crate::view::{Console, Spinner};
 use clap::Parser;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Connect to a VM instance
 ///
@@ -43,10 +43,8 @@ impl Command for SshCommand {
         .await?;
 
         let instance = LoadInstanceAction::new().run(context, console, name.as_str())?;
-        console.play(Arc::new(Mutex::new(Spinner::new(format!(
-            "Connecting to {}",
-            instance.name
-        )))));
+        let text = format!("Connecting to {}", instance.name);
+        let mut spinner = Spinner::new(Arc::clone(console), text);
 
         let user = self
             .target
@@ -64,7 +62,7 @@ impl Command for SshCommand {
         let channel = ssh
             .open_channel(console, &instance.name, &client_key, &user, ssh_port)
             .await?;
-        console.stop();
+        spinner.stop();
         ssh.shell(console, &instance.name, channel).await?;
         Ok(())
     }

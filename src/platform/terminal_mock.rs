@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 pub struct TerminalMock {
     output: String,
     input: VecDeque<String>,
+    is_terminal: bool,
 }
 
 impl TerminalMock {
@@ -34,6 +35,11 @@ impl TerminalMock {
 }
 
 impl SystemMock {
+    pub fn set_terminal(self, is_terminal: bool) -> Self {
+        self.terminal.lock().unwrap().is_terminal = is_terminal;
+        self
+    }
+
     pub fn push_input(&self, line: &str) {
         self.terminal.lock().unwrap().push_input(line);
     }
@@ -54,9 +60,10 @@ impl Terminal for SystemMock {
 
     fn flush(&self, _stream: Stream) {}
 
-    // A mocked host is never attended, so colour and prompts stay off.
+    // A mocked host is unattended by default, so colour and animations stay
+    // off until a test asks for them.
     fn is_terminal(&self, _stream: Stream) -> bool {
-        false
+        self.terminal.lock().unwrap().is_terminal
     }
 
     fn read_input(&self) -> String {

@@ -143,7 +143,7 @@ impl CommandDispatcher {
         };
 
         // Clear any animation the command left running, including on error.
-        console.stop();
+        console.clear_animation();
         result
     }
 }
