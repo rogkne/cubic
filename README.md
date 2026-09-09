@@ -176,7 +176,7 @@ Examples:
   $ cubic show <instance>
 
   Execute a command in a VM instance:
-  $ cubic exec <instance> <shell command>
+  $ cubic exec <instance> -- <command>
 
   Transfer files and directories between host and VM instance:
   $ cubic scp <path/to/host/file> <instance>:<path/to/guest/file>
