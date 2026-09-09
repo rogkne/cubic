@@ -64,7 +64,7 @@ Run a One-Off Command
 
 .. code-block::
 
-    $ cubic exec builder --env GITHUB_TOKEN "pip install git+https://github.com/your-org/private-lib.git"
+    $ cubic exec builder --env GITHUB_TOKEN -- pip install git+https://github.com/your-org/private-lib.git
 
 Related
 -------
