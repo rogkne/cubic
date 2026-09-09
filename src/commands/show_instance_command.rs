@@ -18,7 +18,7 @@ pub struct ShowInstanceCommand {
 }
 
 impl Command for ShowInstanceCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let env = context.get_env();
         let instance_store = context.get_instance_store();
 
@@ -87,7 +87,7 @@ impl Command for ShowInstanceCommand {
 
         view.print(console);
 
-        Ok(())
+        Ok(0)
     }
 }
 

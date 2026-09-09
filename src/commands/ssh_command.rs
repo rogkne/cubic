@@ -27,7 +27,7 @@ pub struct SshCommand {
 }
 
 impl Command for SshCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let env = context.get_env();
 
         let name = self.target.get_instance();
@@ -63,7 +63,6 @@ impl Command for SshCommand {
             .open_channel(console, &instance.name, &client_key, &user, ssh_port)
             .await?;
         spinner.stop();
-        ssh.shell(console, &instance.name, channel).await?;
-        Ok(())
+        ssh.shell(console, &instance.name, channel).await
     }
 }

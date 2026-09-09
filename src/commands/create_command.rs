@@ -218,8 +218,9 @@ impl CreateCommand {
 }
 
 impl Command for CreateCommand {
-    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
-        self.create(console, context, false).await
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<u8> {
+        self.create(console, context, false).await?;
+        Ok(0)
     }
 }
 

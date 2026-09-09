@@ -29,7 +29,7 @@ use std::sync::Arc;
 pub struct ListPortCommand;
 
 impl Command for ListPortCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -66,11 +66,11 @@ impl Command for ListPortCommand {
         if rule_count == 0 {
             console.print("No port forwarding rules are configured.");
             console.print("Add one with cubic modify <instance> --port <host_port>:<guest_port>");
-            return Ok(());
+            return Ok(0);
         }
 
         view.print(console);
-        Ok(())
+        Ok(0)
     }
 }
 

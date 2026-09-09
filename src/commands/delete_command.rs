@@ -76,7 +76,7 @@ impl DeleteCommand {
 }
 
 impl Command for DeleteCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
 
         if self.targets.is_empty() {
@@ -105,7 +105,7 @@ impl Command for DeleteCommand {
 
         console.info("Running instances are stopped before deletion.");
         if !self.yes.value && !ConfirmDialog::new("Do you want to proceed?").confirm(console) {
-            return Ok(());
+            return Ok(0);
         }
 
         for target in &targets {
@@ -134,7 +134,7 @@ impl Command for DeleteCommand {
         }
 
         console.print("Successfully deleted all targets");
-        Ok(())
+        Ok(0)
     }
 }
 

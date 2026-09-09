@@ -21,7 +21,7 @@ pub struct PruneCommand {
 }
 
 impl Command for PruneCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let env = context.get_env();
         let system = context.get_system();
 
@@ -55,7 +55,7 @@ impl Command for PruneCommand {
             console.print(&format!("Successfully freed {total} of disk space."));
         }
 
-        Ok(())
+        Ok(0)
     }
 }
 

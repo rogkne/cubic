@@ -70,14 +70,32 @@ something you want the guest to see, because the words arrive as one string:
 Check the Result
 ----------------
 
-``cubic exec`` reports whether it reached the guest, not what the command
-decided there. A command that fails inside the guest still leaves ``cubic exec``
-successful, so ask the guest itself when a script depends on the answer:
+``cubic exec`` ends with the exit code of the command in the guest, so a script
+on the host can act on it:
 
 .. code-block::
 
-    $ cubic exec demo "test -f /etc/cubic-tutorial && echo present || echo missing"
-    missing
+    $ cubic exec demo -- test -f /etc/motd
+    $ echo $?
+    0
+    $ cubic exec demo -- test -f /etc/cubic-tutorial
+    $ echo $?
+    1
+
+The code 255 means the session ended without a result from the guest, for
+example when the connection broke or when you left the session with Enter,
+``~``, ``.``.
+
+``cubic ssh`` and ``cubic run`` work the same way and end with the exit code of
+the login shell in the guest.
+
+A command that reads from a pipe or a file works as well, because Cubic asks for
+a terminal in the guest only when your own terminal is attached:
+
+.. code-block::
+
+    $ echo hello | cubic exec demo -- cat
+    hello
 
 Run a Command at Creation
 -------------------------

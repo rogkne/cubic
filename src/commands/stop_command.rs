@@ -38,7 +38,7 @@ pub struct StopCommand {
 }
 
 impl Command for StopCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
 
         if !self.all.value {
@@ -81,7 +81,7 @@ impl Command for StopCommand {
             }
         }
 
-        Ok(())
+        Ok(0)
     }
 }
 

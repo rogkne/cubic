@@ -66,6 +66,10 @@ impl Terminal for SystemMock {
         self.terminal.lock().unwrap().is_terminal
     }
 
+    fn is_stdin_terminal(&self) -> bool {
+        false
+    }
+
     fn read_input(&self) -> String {
         self.terminal.lock().unwrap().pop_input().trim().to_string()
     }

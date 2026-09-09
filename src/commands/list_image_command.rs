@@ -38,7 +38,7 @@ pub struct ListImageCommand {
 }
 
 impl Command for ListImageCommand {
-    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<u8> {
         let images = fetch_image_list(console, context.get_system(), context.get_env()).await;
 
         let mut view = TableView::new();
@@ -74,6 +74,6 @@ impl Command for ListImageCommand {
                 );
         }
         view.print(console);
-        Ok(())
+        Ok(0)
     }
 }

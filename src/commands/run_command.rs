@@ -65,7 +65,7 @@ impl RunCommand {
 }
 
 impl Command for RunCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         self.create_cmd.create(console, context, self.rm).await?;
 
         let result = commands::SshCommand {

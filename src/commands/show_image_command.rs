@@ -18,7 +18,7 @@ pub struct ShowImageCommand {
 }
 
 impl Command for ShowImageCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let env = context.get_env();
         let image = fetch_image_info(console, context.get_system(), env, &self.name).await?;
 
@@ -45,6 +45,6 @@ impl Command for ShowImageCommand {
         }
 
         view.print(console);
-        Ok(())
+        Ok(0)
     }
 }

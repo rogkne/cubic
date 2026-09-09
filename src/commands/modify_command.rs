@@ -68,7 +68,7 @@ pub struct ModifyCommand {
 }
 
 impl Command for ModifyCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
         let mut instance =
             LoadInstanceAction::new().run(context, console, self.instance.value.as_str())?;
@@ -112,7 +112,7 @@ impl Command for ModifyCommand {
         instance.hostfwd.retain(|p| !self.rm_port.contains(p));
 
         instance_store.store(&instance)?;
-        Ok(())
+        Ok(0)
     }
 }
 

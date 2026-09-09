@@ -45,7 +45,7 @@ pub struct StartCommand {
 }
 
 impl Command for StartCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         self.instances.require_names()?;
 
         let instance_store = context.get_instance_store();
@@ -101,7 +101,7 @@ impl Command for StartCommand {
             }
         }
 
-        Ok(())
+        Ok(0)
     }
 }
 

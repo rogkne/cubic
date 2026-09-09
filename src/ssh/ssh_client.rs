@@ -10,6 +10,7 @@ use russh_sftp::client::SftpSession;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
 use tokio_util::io::StreamReader;
 
@@ -306,30 +307,79 @@ impl<'a> SshClient<'a> {
             .map_err(|_| Error::SshConnectionFailed(machine.to_string()))
     }
 
+    /// Forwards stdin to the guest. On EOF it passes the EOF on and then waits
+    /// forever, so the guest decides when the session ends. It returns on
+    /// error, which is how the detach shortcut ends a session.
+    async fn forward_input(
+        stdin: &mut (impl tokio::io::AsyncRead + Unpin),
+        ssh_writer: &mut (impl tokio::io::AsyncWrite + Unpin),
+        ssh_out: &ChannelWriteHalf<client::Msg>,
+    ) {
+        if tokio::io::copy(stdin, ssh_writer).await.is_ok() {
+            ssh_out.eof().await.ok();
+            std::future::pending::<()>().await;
+        }
+    }
+
+    /// Writes the output of the guest to stdout and picks up the exit status of
+    /// the remote command. An EOF does not end the loop, because the guest
+    /// sends the exit status after it.
+    async fn forward_output(
+        ssh_in: &mut ChannelReadHalf,
+        stdout: &mut tokio::io::Stdout,
+    ) -> Option<u32> {
+        let mut exit_status = None;
+
+        while let Some(msg) = ssh_in.wait().await {
+            match msg {
+                ChannelMsg::Data { data } | ChannelMsg::ExtendedData { data, .. } => {
+                    if stdout.write_all(&data).await.is_err() || stdout.flush().await.is_err() {
+                        break;
+                    }
+                }
+                ChannelMsg::ExitStatus {
+                    exit_status: status,
+                } => exit_status = Some(status),
+                ChannelMsg::Close => break,
+                _ => (),
+            }
+        }
+
+        exit_status
+    }
+
+    /// Runs the session and returns the exit status of the guest.
     pub async fn shell(
         &self,
         console: &Arc<Console>,
         instance: &str,
         channel: Channel<russh::client::Msg>,
-    ) -> Result<(), Error> {
-        let (w, h) = console.get_geometry().unwrap();
+    ) -> Result<u8, Error> {
+        // A pty is what an interactive session needs, but it also keeps the
+        // guest from ever seeing the end of stdin. Ask for one only when stdin
+        // is a terminal, the same rule the OpenSSH client follows.
+        let pty = self.context.get_system().is_stdin_terminal();
 
-        channel
-            .request_pty(
-                false,
-                &self
-                    .context
-                    .get_system()
-                    .read_env_var("TERM")
-                    .unwrap_or_else(|| "xterm".into()),
-                w,
-                h,
-                0,
-                0,
-                &[],
-            )
-            .await
-            .map_err(|_| Error::SshConnectionFailed(instance.to_string()))?;
+        if pty {
+            let (w, h) = console.get_geometry().unwrap_or((80, 24));
+
+            channel
+                .request_pty(
+                    false,
+                    &self
+                        .context
+                        .get_system()
+                        .read_env_var("TERM")
+                        .unwrap_or_else(|| "xterm".into()),
+                    w,
+                    h,
+                    0,
+                    0,
+                    &[],
+                )
+                .await
+                .map_err(|_| Error::SshConnectionFailed(instance.to_string()))?;
+        }
 
         for var in &self.env_vars {
             let (name, value) = if let Some((k, v)) = var.split_once('=') {
@@ -361,7 +411,6 @@ impl<'a> SshClient<'a> {
                 .map_err(|_| Error::SshConnectionFailed(instance.to_string()))?;
         }
         let (mut ssh_in, ssh_out) = channel.split();
-        let mut ssh_reader = ssh_in.make_reader();
         let mut ssh_writer = ssh_out.make_writer();
 
         console.raw_mode();
@@ -370,13 +419,17 @@ impl<'a> SshClient<'a> {
             util::ShortcutDecoder::new(),
         ));
         let mut stdout = tokio::io::stdout();
+        let mut exit_status = None;
         tokio::select!(
-            _ = tokio::io::copy(&mut stdin, &mut ssh_writer) => {},
-            _ = tokio::io::copy(&mut ssh_reader, &mut stdout) => {},
-            _ = send_geometry_updates(console, &ssh_out) => {},
+            _ = Self::forward_input(&mut stdin, &mut ssh_writer, &ssh_out) => {},
+            status = Self::forward_output(&mut ssh_in, &mut stdout) => exit_status = status,
+            _ = send_geometry_updates(console, &ssh_out), if pty => {},
         );
         console.reset();
-        Ok(())
+
+        // 255 is the OpenSSH convention for a session that ended without an
+        // exit status.
+        Ok(exit_status.map_or(255, |status| status as u8))
     }
 
     async fn open_sftp(

@@ -69,7 +69,7 @@ pub struct ShowCommand {
 }
 
 impl Command for ShowCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         match &self.name {
             Either::Left(instance) => {
                 commands::ShowInstanceCommand {
