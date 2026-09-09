@@ -37,7 +37,7 @@ pub struct RestoreCommand {
 }
 
 impl Command for RestoreCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
         let snapshot_name = self.snapshot.as_str();
@@ -54,7 +54,7 @@ impl Command for RestoreCommand {
         console.info("The instance is stopped and all changes since the snapshot are lost.");
 
         if !self.yes.value && !ConfirmDialog::new("Do you want to proceed?").confirm(console) {
-            return Ok(());
+            return Ok(0);
         }
 
         // The restore discards the current state, so kill instead of a clean stop.
@@ -70,7 +70,7 @@ impl Command for RestoreCommand {
         instance_store.restore_snapshot(&instance, snapshot_name)?;
 
         console.print(&format!("Successfully restored {}", self.snapshot));
-        Ok(())
+        Ok(0)
     }
 }
 

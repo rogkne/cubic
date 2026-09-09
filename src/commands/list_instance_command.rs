@@ -31,7 +31,7 @@ pub struct ListInstanceCommand {
 }
 
 impl Command for ListInstanceCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
         let instance_names = instance_store.get_instances();
 
@@ -78,7 +78,7 @@ impl Command for ListInstanceCommand {
                 );
         }
         view.print(console);
-        Ok(())
+        Ok(0)
     }
 }
 

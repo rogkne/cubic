@@ -23,7 +23,7 @@ pub struct CloneCommand {
 }
 
 impl Command for CloneCommand {
-    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
 
         // Verify that the target name is available
@@ -62,7 +62,7 @@ impl Command for CloneCommand {
         // Create VM instance
         CreateInstanceAction::new().run(context, image_path, target, false)?;
 
-        Ok(())
+        Ok(0)
     }
 }
 

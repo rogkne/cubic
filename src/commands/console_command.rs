@@ -37,7 +37,7 @@ pub struct ConsoleCommand {
 }
 
 impl Command for ConsoleCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         commands::StartCommand {
             qemu_args: None,
             accel: self.accel,
@@ -79,7 +79,7 @@ impl Command for ConsoleCommand {
 
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
-            Ok(())
+            Ok(0)
         };
         tokio::time::timeout(CONSOLE_TIMEOUT, wait)
             .await
@@ -109,7 +109,7 @@ impl Command for ConsoleCommand {
             console.error("Cannot open shell");
         }
         console.reset();
-        Ok(())
+        Ok(0)
     }
 }
 

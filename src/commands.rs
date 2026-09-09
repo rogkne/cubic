@@ -75,5 +75,5 @@ use std::sync::Arc;
 // The runtime is single threaded, so the returned futures never need Send.
 #[allow(async_fn_in_trait)]
 trait Command {
-    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<()>;
+    async fn run(&self, console: &Arc<Console>, context: &Context) -> Result<u8>;
 }

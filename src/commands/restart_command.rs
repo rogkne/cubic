@@ -24,7 +24,7 @@ pub struct RestartCommand {
 }
 
 impl Command for RestartCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         commands::StopCommand {
             all: false.into(),
             wait: true,

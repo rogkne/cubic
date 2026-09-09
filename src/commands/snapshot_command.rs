@@ -30,7 +30,7 @@ pub struct SnapshotCommand {
 }
 
 impl Command for SnapshotCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
 
@@ -43,7 +43,7 @@ impl Command for SnapshotCommand {
         instance_store.create_snapshot(&instance, self.snapshot.as_str())?;
 
         console.print(&format!("Created snapshot {}", self.snapshot));
-        Ok(())
+        Ok(0)
     }
 }
 

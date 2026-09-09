@@ -39,7 +39,7 @@ async fn main() -> ! {
     if let Err(error) = &result {
         console.error(&error.to_string());
     }
-    let code = result.map_or(1, |()| 0);
+    let code = result.map_or(1, i32::from);
 
     console.flush();
     system.exit(code);

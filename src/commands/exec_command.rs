@@ -45,7 +45,7 @@ impl ExecCommand {
 }
 
 impl Command for ExecCommand {
-    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<()> {
+    async fn run(&self, console: &Arc<Console>, context: &commands::Context) -> Result<u8> {
         let env = context.get_env();
         let name = self.target.get_instance();
 
@@ -78,8 +78,7 @@ impl Command for ExecCommand {
         let channel = ssh
             .open_channel(console, &instance.name, &client_key, &user, ssh_port)
             .await?;
-        ssh.shell(console, name.as_str(), channel).await?;
-        Ok(())
+        ssh.shell(console, name.as_str(), channel).await
     }
 }
 

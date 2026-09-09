@@ -101,10 +101,10 @@ pub struct CommandDispatcher {
 }
 
 impl CommandDispatcher {
-    pub async fn dispatch(self, system: Arc<dyn System>, console: &Arc<Console>) -> Result<()> {
+    pub async fn dispatch(self, system: Arc<dyn System>, console: &Arc<Console>) -> Result<u8> {
         let Some(command) = self.command else {
             println!("{}", CommandDispatcher::command().render_long_help());
-            return Ok(());
+            return Ok(0);
         };
 
         console.set_verbosity(commands::Verbosity::new(

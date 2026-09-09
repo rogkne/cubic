@@ -30,6 +30,10 @@ impl Terminal for OsSystem {
         }
     }
 
+    fn is_stdin_terminal(&self) -> bool {
+        stdin().is_terminal()
+    }
+
     fn read_input(&self) -> String {
         let mut reply = String::new();
         stdin().read_line(&mut reply).unwrap();
