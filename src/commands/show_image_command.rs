@@ -25,7 +25,7 @@ impl Command for ShowImageCommand {
         let mut view = MapView::new();
         view.add("Name", &image.get_image_name());
         view.add("Tags", &image.get_tags());
-        view.add("Architecture", &image.arch.to_string());
+        view.add("Arch", &image.arch.to_string());
         if let Some(size) = image.size {
             view.add("Size", &DataSize::new(size as usize).to_size());
         }

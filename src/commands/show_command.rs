@@ -40,11 +40,11 @@ use std::sync::Arc;
 ///   Show information of a VM image
 ///   A plain name is an instance, so an image needs a name or a tag
 ///   $ cubic show ubuntu:latest
-///   Name:         ubuntu:26.04
-///   Tags:         resolute, stable, latest
-///   Architecture: amd64
-///   Size:         408 M
-///   Cached:       yes
+///   Name:   ubuntu:26.04
+///   Tags:   resolute, stable, latest
+///   Arch:   amd64
+///   Size:   408 M
+///   Cached: yes
 ///
 ///   Show all image information, adding checksum, file path and URLs
 ///   $ cubic show --all ubuntu:noble
