@@ -2,6 +2,7 @@ use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::{Error, Result};
 use crate::models::{InstanceName, SnapshotName};
+use crate::qemu::QemuImg;
 use crate::util::Either;
 use crate::view::ConfirmDialog;
 use clap::Parser;
@@ -91,7 +92,9 @@ impl Command for DeleteCommand {
 
             if let Either::Right(snapshot_name) = target {
                 let instance = LoadInstanceAction::new().run(context, instance_name.as_str())?;
-                if !instance.has_snapshot(snapshot_name.as_str()) {
+                let image = context.get_env().get_instance_image_file(&instance.name);
+                if !QemuImg::new(context.get_system()).has_snapshot(&image, snapshot_name.as_str())
+                {
                     return Err(Error::UnknownSnapshot(
                         instance_name.to_string(),
                         snapshot_name.as_str().to_string(),
@@ -124,7 +127,9 @@ impl Command for DeleteCommand {
             let instance = LoadInstanceAction::new().run(context, instance_name.as_str())?;
             match target {
                 Either::Right(snapshot_name) => {
-                    instance_store.delete_snapshot(&instance, snapshot_name.as_str())?
+                    let image = context.get_env().get_instance_image_file(&instance.name);
+                    QemuImg::new(context.get_system())
+                        .delete_snapshot(&image, snapshot_name.as_str())?
                 }
                 Either::Left(_) => instance_store.delete(&instance)?,
             }
@@ -140,36 +145,38 @@ impl Command for DeleteCommand {
 mod tests {
     use super::*;
     use crate::commands::ContextBuilder;
-    use crate::models::{Instance, Snapshot};
+    use crate::models::Instance;
     use crate::platform::SystemMock;
     use std::sync::{Arc, Mutex};
 
     struct Recorders {
         deleted: Arc<Mutex<Vec<String>>>,
-        snapshots: Arc<Mutex<Vec<String>>>,
+        system: Arc<SystemMock>,
+        // The qemu-img call that deletes test/clean
+        delete_clean: String,
     }
 
-    fn build_context(instances: Vec<Instance>) -> (commands::Context, Recorders) {
+    impl Recorders {
+        fn count_snapshot_deletes(&self) -> usize {
+            let commands = self.system.get_executed_commands();
+            commands.iter().filter(|c| **c == self.delete_clean).count()
+        }
+    }
+
+    // Builds a context with the instance "test" whose image holds `snapshots`
+    fn build_context(snapshots: &[&str]) -> (commands::Context, Recorders) {
         let mut builder = ContextBuilder::new(SystemMock::new());
-        builder.get_store().add_instances(instances);
+        builder.get_store().add_instances(vec![Instance {
+            name: "test".to_string(),
+            ..Instance::default()
+        }]);
+        builder.add_image_info("test", 0, 0, snapshots);
         let recorders = Recorders {
             deleted: Arc::clone(&builder.get_store().deleted),
-            snapshots: Arc::clone(&builder.get_store().snapshots),
+            system: Arc::clone(builder.get_system()),
+            delete_clean: builder.add_snapshot_command("-d", "test", "clean"),
         };
         (builder.build(), recorders)
-    }
-
-    fn build_instance(name: &str, snapshots: Vec<&str>) -> Instance {
-        Instance {
-            name: name.to_string(),
-            snapshots: snapshots
-                .iter()
-                .map(|snapshot| Snapshot {
-                    name: snapshot.to_string(),
-                })
-                .collect(),
-            ..Instance::default()
-        }
     }
 
     fn build_command(targets: &[&str]) -> DeleteCommand {
@@ -185,41 +192,39 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_instance() {
-        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+        let (context, recorders) = build_context(&["clean"]);
 
         build_command(&["test"]).run(&context).await.unwrap();
 
         assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
-        assert!(recorders.snapshots.lock().unwrap().is_empty());
+        assert_eq!(recorders.count_snapshot_deletes(), 0);
     }
 
     #[tokio::test]
     async fn test_delete_snapshot_keeps_the_instance() {
-        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+        let (context, recorders) = build_context(&["clean"]);
 
         build_command(&["test/clean"]).run(&context).await.unwrap();
 
-        let snapshots = recorders.snapshots.lock().unwrap();
-        assert_eq!(*snapshots, vec!["delete test/clean"]);
+        assert_eq!(recorders.count_snapshot_deletes(), 1);
         assert!(recorders.deleted.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
     async fn test_delete_ignores_duplicate_targets() {
-        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+        let (context, recorders) = build_context(&["clean"]);
 
         build_command(&["test/clean", "test/clean"])
             .run(&context)
             .await
             .unwrap();
 
-        let snapshots = recorders.snapshots.lock().unwrap();
-        assert_eq!(*snapshots, vec!["delete test/clean"]);
+        assert_eq!(recorders.count_snapshot_deletes(), 1);
     }
 
     #[tokio::test]
     async fn test_delete_instance_skips_its_own_snapshot() {
-        let (context, recorders) = build_context(vec![build_instance("test", vec!["clean"])]);
+        let (context, recorders) = build_context(&["clean"]);
 
         build_command(&["test/clean", "test"])
             .run(&context)
@@ -227,12 +232,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(*recorders.deleted.lock().unwrap(), vec!["test"]);
-        assert!(recorders.snapshots.lock().unwrap().is_empty());
+        assert_eq!(recorders.count_snapshot_deletes(), 0);
     }
 
     #[tokio::test]
     async fn test_reject_an_empty_target_list() {
-        let (context, _) = build_context(Vec::new());
+        let (context, _) = build_context(&[]);
 
         assert!(matches!(
             build_command(&[]).run(&context).await,
@@ -242,7 +247,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_reject_an_unknown_snapshot() {
-        let (context, recorders) = build_context(vec![build_instance("test", vec!["deps"])]);
+        let (context, recorders) = build_context(&["deps"]);
 
         assert!(matches!(
             build_command(&["test/clean"]).run(&context).await,

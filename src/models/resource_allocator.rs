@@ -93,7 +93,7 @@ impl ResourceAllocator {
     pub fn enforce_minimums(
         cpus: &mut u16,
         mem: &mut DataSize,
-        disk: &mut DataSize,
+        disk: Option<&mut DataSize>,
     ) -> Vec<String> {
         let mut warnings = Vec::new();
 
@@ -111,7 +111,9 @@ impl ResourceAllocator {
             ));
             *mem = DataSize::new(MIN_MEMORY);
         }
-        if disk.get_bytes() < MIN_DISK {
+        if let Some(disk) = disk
+            && disk.get_bytes() < MIN_DISK
+        {
             warnings.push(format!(
                 "Disk raised from {} to {} (minimum usable value).",
                 disk.to_size(),
@@ -204,7 +206,7 @@ mod tests {
         let mut mem = DataSize::new(0);
         let mut disk = DataSize::new(0);
 
-        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, &mut disk);
+        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, Some(&mut disk));
 
         assert_eq!(cpus, MIN_CPUS);
         assert_eq!(mem.get_bytes(), MIN_MEMORY);
@@ -218,7 +220,7 @@ mod tests {
         let mut mem = DataSize::new(4 * GIB);
         let mut disk = DataSize::new(50 * GIB);
 
-        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, &mut disk);
+        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, Some(&mut disk));
 
         assert_eq!(cpus, 4);
         assert_eq!(mem.get_bytes(), 4 * GIB);
@@ -232,7 +234,7 @@ mod tests {
         let mut mem = DataSize::new(4 * GIB);
         let mut disk = DataSize::new(50 * GIB);
 
-        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, &mut disk);
+        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, Some(&mut disk));
 
         assert_eq!(cpus, MIN_CPUS);
         assert_eq!(mem.get_bytes(), 4 * GIB);
@@ -246,7 +248,7 @@ mod tests {
         let mut mem = DataSize::new(MIN_MEMORY);
         let mut disk = DataSize::new(MIN_DISK);
 
-        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, &mut disk);
+        let warnings = ResourceAllocator::enforce_minimums(&mut cpus, &mut mem, Some(&mut disk));
 
         assert_eq!(cpus, MIN_CPUS);
         assert_eq!(mem.get_bytes(), MIN_MEMORY);

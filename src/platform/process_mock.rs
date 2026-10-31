@@ -49,11 +49,15 @@ impl CommandMock {
 
 impl SystemMock {
     pub fn add_command_output(self, command: &str, stdout: &[u8]) -> Self {
+        self.insert_command_output(command, stdout);
+        self
+    }
+
+    pub fn insert_command_output(&self, command: &str, stdout: &[u8]) {
         self.commands
             .lock()
             .unwrap()
             .add(command, CommandResult::Output(stdout.to_vec()));
-        self
     }
 
     pub fn add_failing_command(self, command: &str, stderr: &str) -> Self {

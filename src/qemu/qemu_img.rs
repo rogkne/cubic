@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::models::{DataSize, Environment, Instance, Snapshot};
+use crate::models::{DataSize, Snapshot};
 use crate::platform::System;
 use crate::qemu::QemuPathBuilder;
 use serde::Deserialize;
@@ -9,9 +9,9 @@ use std::process::Command;
 #[derive(Debug, Deserialize)]
 pub struct ImageInfo {
     #[serde(alias = "actual-size")]
-    pub actual_size: u64,
+    pub actual_size: DataSize,
     #[serde(alias = "virtual-size")]
-    pub virtual_size: u64,
+    pub virtual_size: DataSize,
     // Absent from the JSON until the image holds its first snapshot.
     #[serde(default)]
     pub snapshots: Vec<Snapshot>,
@@ -39,17 +39,16 @@ impl<'a> QemuImg<'a> {
         }
     }
 
-    // Anything that keeps the info from arriving, from a host without qemu to
-    // an image the tool cannot read, leaves the caller with what it already
-    // knows about the disk.
-    pub fn get_image_info(&self, env: &Environment, instance: &Instance) -> Option<ImageInfo> {
+    // Returns None when the info cannot be read, from a host without qemu to
+    // an image the tool cannot parse.
+    pub fn get_image_info(&self, image: &Path) -> Option<ImageInfo> {
         let mut command = self.command();
         command
             .arg("info")
             .arg("--force-share")
             .arg("--output")
             .arg("json")
-            .arg(env.get_instance_image_file(&instance.name));
+            .arg(image);
 
         self.system
             .run_and_wait(command, None, None)
@@ -58,13 +57,10 @@ impl<'a> QemuImg<'a> {
             .and_then(|stdout| serde_json::from_str(&stdout).ok())
     }
 
-    // Keeps the current sizes when the image cannot be read.
-    pub fn read_disk_info(&self, env: &Environment, instance: &mut Instance) {
-        if let Some(info) = self.get_image_info(env, instance) {
-            instance.disk_used = Some(DataSize::new(info.actual_size as usize));
-            instance.disk_capacity = DataSize::new(info.virtual_size as usize);
-            instance.snapshots = info.snapshots;
-        }
+    // An unreadable image holds no snapshots as far as the caller can tell.
+    pub fn has_snapshot(&self, image: &Path, name: &str) -> bool {
+        self.get_image_info(image)
+            .is_some_and(|info| info.snapshots.iter().any(|snapshot| snapshot.name == name))
     }
 
     pub fn create_overlay(&self, base_image: &Path, image: &Path) -> Result<()> {
@@ -122,68 +118,47 @@ impl<'a> QemuImg<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::UserName;
     use crate::platform::SystemMock;
-    use std::str::FromStr;
 
-    fn build_env() -> Environment {
-        Environment::new(
-            UserName::from_str("cubic").unwrap(),
-            "/data".into(),
-            "/cache".into(),
-        )
-    }
+    const IMAGE: &str = "/data/machines/test/machine.img";
 
-    fn build_instance() -> Instance {
-        Instance {
-            name: "test".to_string(),
-            ..Instance::default()
-        }
-    }
-
-    fn build_info_command(env: &Environment) -> String {
-        format!(
-            "qemu-img info --force-share --output json {}",
-            env.get_instance_image_file("test").display()
-        )
+    fn build_info_command() -> String {
+        format!("qemu-img info --force-share --output json {IMAGE}")
     }
 
     #[test]
     fn test_get_image_info_reads_the_reported_sizes() {
-        let env = build_env();
         let system = SystemMock::new().add_command_output(
-            &build_info_command(&env),
+            &build_info_command(),
             br#"{"virtual-size": 1073741824, "actual-size": 200704}"#,
         );
 
         let info = QemuImg::new(&system)
-            .get_image_info(&env, &build_instance())
+            .get_image_info(Path::new(IMAGE))
             .unwrap();
 
-        assert_eq!(info.virtual_size, 1073741824);
-        assert_eq!(info.actual_size, 200704);
+        assert_eq!(info.virtual_size.get_bytes(), 1073741824);
+        assert_eq!(info.actual_size.get_bytes(), 200704);
     }
 
     #[test]
     fn test_get_image_info_is_none_without_qemu() {
-        let env = build_env();
         let system = SystemMock::new();
 
         assert!(
             QemuImg::new(&system)
-                .get_image_info(&env, &build_instance())
+                .get_image_info(Path::new(IMAGE))
                 .is_none()
         );
     }
 
     #[test]
     fn test_get_image_info_is_none_when_the_output_is_not_readable() {
-        let env = build_env();
-        let system = SystemMock::new().add_command_output(&build_info_command(&env), b"not json");
+        let system = SystemMock::new().add_command_output(&build_info_command(), b"not json");
 
         assert!(
             QemuImg::new(&system)
-                .get_image_info(&env, &build_instance())
+                .get_image_info(Path::new(IMAGE))
                 .is_none()
         );
     }
@@ -265,7 +240,7 @@ mod tests {
         "#;
 
         let result: ImageInfo = serde_json::from_str(input).unwrap();
-        assert_eq!(result.actual_size, 200704);
+        assert_eq!(result.actual_size.get_bytes(), 200704);
         assert_eq!(result.snapshots.len(), 1);
         assert_eq!(result.snapshots[0].name, "clean");
     }
@@ -296,23 +271,16 @@ mod tests {
     }
 
     #[test]
-    fn test_read_disk_info_reads_the_snapshots() {
-        let env = build_env();
+    fn test_has_snapshot_reads_the_snapshots_of_the_image() {
         let system = SystemMock::new().add_command_output(
-            &build_info_command(&env),
+            &build_info_command(),
             br#"{"virtual-size": 1073741824, "actual-size": 200704,
                  "snapshots": [{"name": "clean"}, {"name": "deps"}]}"#,
         );
-        let mut instance = build_instance();
+        let qemu_img = QemuImg::new(&system);
 
-        QemuImg::new(&system).read_disk_info(&env, &mut instance);
-
-        let names: Vec<&str> = instance
-            .snapshots
-            .iter()
-            .map(|snapshot| snapshot.name.as_str())
-            .collect();
-        assert_eq!(names, vec!["clean", "deps"]);
+        assert!(qemu_img.has_snapshot(Path::new(IMAGE), "deps"));
+        assert!(!qemu_img.has_snapshot(Path::new(IMAGE), "other"));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use crate::commands::Context;
 use crate::error::Result;
-use crate::models::Instance;
+use crate::models::{DataSize, Instance};
 use crate::qemu::QemuImg;
 use crate::ssh::SshKeyGenerator;
 use std::path::Path;
@@ -18,6 +18,7 @@ impl CreateInstanceAction {
         context: &Context,
         image_path: &Path,
         mut instance: Instance,
+        disk: Option<&DataSize>,
         auto_remove: bool,
     ) -> Result<()> {
         let system = context.get_system();
@@ -41,8 +42,9 @@ impl CreateInstanceAction {
             system.copy_file(image_path, tmp_image)?;
         }
 
-        // Set disk capacity
-        QemuImg::new(system).resize(tmp_image, instance.disk_capacity.get_bytes() as u64)?;
+        if let Some(disk) = disk {
+            QemuImg::new(system).resize(tmp_image, disk.get_bytes() as u64)?;
+        }
 
         // Write configuration file
         instance.auto_remove = auto_remove;

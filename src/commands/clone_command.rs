@@ -58,7 +58,8 @@ impl Command for CloneCommand {
         target.ssh_host_key = None;
 
         // Create VM instance
-        CreateInstanceAction::new().run(context, image_path, target, false)?;
+        // The copied image keeps the size of the source
+        CreateInstanceAction::new().run(context, image_path, target, None, false)?;
 
         Ok(0)
     }

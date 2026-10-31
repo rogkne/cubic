@@ -1,8 +1,7 @@
 use crate::error::{Error, Result};
 use crate::instance::{InstanceSerializer, InstanceStore, TomlInstanceDeserializer};
-use crate::models::{DataSize, Environment, Instance, InstanceName, MIN_DISK};
+use crate::models::{Environment, Instance, InstanceName};
 use crate::platform::{Access, System};
-use crate::qemu::QemuImg;
 use std::str;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -60,10 +59,7 @@ impl InstanceStore for InstanceDao {
             .open_file(&path)
             .map_err(|error| Error::from_config(name, error))?;
 
-        let mut instance = TomlInstanceDeserializer::new().deserialize(name, &mut file)?;
-        QemuImg::new(self.system.as_ref()).read_disk_info(&self.env, &mut instance);
-
-        Ok(instance)
+        TomlInstanceDeserializer::new().deserialize(name, &mut file)
     }
 
     fn store(&self, instance: &Instance) -> Result<()> {
@@ -86,63 +82,11 @@ impl InstanceStore for InstanceDao {
         Ok(())
     }
 
-    fn resize(&self, instance: &mut Instance, size: u64) -> Result<()> {
-        if (size as usize) < MIN_DISK {
-            Err(Error::DiskBelowMinimum(
-                instance.name.to_string(),
-                DataSize::new(MIN_DISK).to_size(),
-            ))
-        } else if instance.disk_capacity.get_bytes() >= size as usize {
-            Err(Error::CannotShrinkDisk(instance.name.to_string()))
-        } else {
-            QemuImg::new(self.system.as_ref())
-                .resize(&self.env.get_instance_image_file(&instance.name), size)?;
-            instance.disk_capacity = DataSize::new(size as usize);
-            Ok(())
-        }
-    }
-
     fn delete(&self, instance: &Instance) -> Result<()> {
         self.system
             .remove_dir(&self.env.get_instance_dir2(&instance.name))
             .ok();
         Ok(())
-    }
-
-    fn create_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
-        if instance.has_snapshot(name) {
-            Err(Error::SnapshotAlreadyExists(
-                instance.name.to_string(),
-                name.to_string(),
-            ))
-        } else {
-            QemuImg::new(self.system.as_ref())
-                .create_snapshot(&self.env.get_instance_image_file(&instance.name), name)
-        }
-    }
-
-    fn restore_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
-        if !instance.has_snapshot(name) {
-            Err(Error::UnknownSnapshot(
-                instance.name.to_string(),
-                name.to_string(),
-            ))
-        } else {
-            QemuImg::new(self.system.as_ref())
-                .restore_snapshot(&self.env.get_instance_image_file(&instance.name), name)
-        }
-    }
-
-    fn delete_snapshot(&self, instance: &Instance, name: &str) -> Result<()> {
-        if !instance.has_snapshot(name) {
-            Err(Error::UnknownSnapshot(
-                instance.name.to_string(),
-                name.to_string(),
-            ))
-        } else {
-            QemuImg::new(self.system.as_ref())
-                .delete_snapshot(&self.env.get_instance_image_file(&instance.name), name)
-        }
     }
 }
 
@@ -158,13 +102,6 @@ mod tests {
             "/data".into(),
             "/cache".into(),
         )
-    }
-
-    fn build_instance() -> Instance {
-        Instance {
-            name: "test".to_string(),
-            ..Instance::default()
-        }
     }
 
     #[test]
@@ -199,53 +136,6 @@ mod tests {
         assert!(matches!(
             dao.load("test"),
             Err(Error::InvalidInstanceConfig { name, .. }) if name == "test"
-        ));
-    }
-
-    fn build_instance_with_snapshot() -> Instance {
-        Instance {
-            name: "test".to_string(),
-            snapshots: vec![crate::models::Snapshot {
-                name: "clean".to_string(),
-            }],
-            ..Instance::default()
-        }
-    }
-
-    #[test]
-    fn test_create_snapshot_runs_qemu_img() {
-        let env = build_env();
-        let command = format!(
-            "qemu-img snapshot -c clean {}",
-            env.get_instance_image_file("test").display()
-        );
-        let system = Arc::new(SystemMock::new().add_command_output(&command, b""));
-        let dao = InstanceDao::new(system.clone(), &env).unwrap();
-
-        dao.create_snapshot(&build_instance(), "clean").unwrap();
-
-        assert_eq!(system.get_executed_commands(), vec![command]);
-    }
-
-    #[test]
-    fn test_create_snapshot_rejects_a_duplicate_name() {
-        let dao = InstanceDao::new(Arc::new(SystemMock::new()), &build_env()).unwrap();
-
-        assert!(matches!(
-            dao.create_snapshot(&build_instance_with_snapshot(), "clean"),
-            Err(Error::SnapshotAlreadyExists(instance, snapshot))
-                if instance == "test" && snapshot == "clean"
-        ));
-    }
-
-    #[test]
-    fn test_restore_snapshot_rejects_an_unknown_name() {
-        let dao = InstanceDao::new(Arc::new(SystemMock::new()), &build_env()).unwrap();
-
-        assert!(matches!(
-            dao.restore_snapshot(&build_instance(), "clean"),
-            Err(Error::UnknownSnapshot(instance, snapshot))
-                if instance == "test" && snapshot == "clean"
         ));
     }
 

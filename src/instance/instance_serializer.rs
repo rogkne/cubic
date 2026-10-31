@@ -29,7 +29,6 @@ mod tests {
                 user: UserName::from_str("tux").unwrap(),
                 cpus: 1,
                 mem: DataSize::new(1000),
-                disk_capacity: DataSize::new(1000),
                 ssh_port: 10000,
                 hostfwd: Vec::new(),
                 execute: None,
@@ -43,7 +42,6 @@ mod tests {
 user = "tux"
 cpus = 1
 mem = 1000
-disk_capacity = 1000
 ssh_port = 10000
 hostfwd = []
 isolate = false
@@ -63,7 +61,6 @@ first_boot = false
                 os: Some("debian:12".to_string()),
                 cpus: 1,
                 mem: DataSize::new(1000),
-                disk_capacity: DataSize::new(1000),
                 ssh_port: 10000,
                 hostfwd: Vec::new(),
                 execute: Some("echo hello world".to_string()),
@@ -81,7 +78,6 @@ user = "tux"
 os = "debian:12"
 cpus = 1
 mem = 1000
-disk_capacity = 1000
 ssh_port = 10000
 hostfwd = []
 execute = "echo hello world"

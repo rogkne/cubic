@@ -1,6 +1,7 @@
 use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::Result;
+use crate::qemu::QemuImg;
 use crate::ssh::HostKeyChecker;
 use crate::util;
 use crate::view::MapView;
@@ -34,10 +35,12 @@ impl Command for ShowInstanceCommand {
         view.add("Arch", &instance.arch.to_string());
         view.add("vCPUs", &instance.cpus.to_string());
         view.add("Memory", &instance.mem.to_size());
-        if let Some(disk_used) = &instance.disk_used {
-            view.add("Disk Used", &disk_used.to_size());
+        let image_file = env.get_instance_image_file(&instance.name);
+        let info = QemuImg::new(context.get_system()).get_image_info(&image_file);
+        if let Some(info) = &info {
+            view.add("Disk Used", &info.actual_size.to_size());
+            view.add("Disk Total", &info.virtual_size.to_size());
         }
-        view.add("Disk Total", &instance.disk_capacity.to_size());
         view.add("User", instance.user.as_str());
         view.add("Isolated", util::to_yes_no(instance.isolate));
 
@@ -47,13 +50,13 @@ impl Command for ShowInstanceCommand {
             view.add(key, &rule.to_string());
         }
 
-        for (index, snapshot) in instance.snapshots.iter().enumerate() {
+        let snapshots = info.map(|info| info.snapshots).unwrap_or_default();
+        for (index, snapshot) in snapshots.iter().enumerate() {
             let key = if index == 0 { "Snapshots" } else { "" };
             view.add(key, &snapshot.name);
         }
 
         if self.all.value {
-            let image_file = env.get_instance_image_file(&instance.name);
             let config_file = env.get_instance_toml_config_file(&instance.name);
             view.add("SSH Port", &instance.ssh_port.to_string());
             view.add("Disk Image", &image_file.display().to_string());
@@ -86,7 +89,7 @@ impl Command for ShowInstanceCommand {
 mod tests {
     use super::*;
     use crate::commands::ContextBuilder;
-    use crate::models::{Arch, DataSize, Instance, InstanceName, Snapshot, UserName};
+    use crate::models::{Arch, DataSize, Instance, InstanceName, UserName};
     use crate::platform::SystemMock;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -100,12 +103,12 @@ mod tests {
             user: UserName::from_str("myuser").unwrap(),
             cpus: 1,
             mem: DataSize::new(1024),
-            disk_capacity: DataSize::new(1048576),
             os: Some("ubuntu:24.04".to_string()),
             ssh_port: 9000,
             hostfwd: vec!["127.0.0.1:4000:40/tcp".parse().unwrap()],
             ..Instance::default()
         }]);
+        builder.add_image_info("test", 512 * 1024, 1048576, &[]);
         let system = Arc::clone(builder.get_system());
         let context = builder.build();
 
@@ -125,6 +128,7 @@ Running:    no
 Arch:       amd64
 vCPUs:      1
 Memory:     1024 B
+Disk Used:  512 K
 Disk Total: 1024 K
 User:       myuser
 Isolated:   no
@@ -142,19 +146,10 @@ Forward:    127.0.0.1:4000:40/tcp
             user: UserName::from_str("john").unwrap(),
             cpus: 2,
             mem: DataSize::new(1),
-            disk_capacity: DataSize::new(1),
             ssh_port: 8000,
             hostfwd: vec![
                 "127.0.0.1:4000:40/tcp".parse().unwrap(),
                 "0.0.0.0:80:8000/udp".parse().unwrap(),
-            ],
-            snapshots: vec![
-                Snapshot {
-                    name: "clean".to_string(),
-                },
-                Snapshot {
-                    name: "before-upgrade".to_string(),
-                },
             ],
             isolate: true,
             ssh_host_key: Some(
@@ -163,6 +158,7 @@ Forward:    127.0.0.1:4000:40/tcp
             ),
             ..Instance::default()
         }]);
+        builder.add_image_info("test", 1, 1, &["clean", "before-upgrade"]);
         let system = Arc::clone(builder.get_system());
         let context = builder.build();
 
@@ -187,6 +183,7 @@ Running:      no
 Arch:         arm64
 vCPUs:        2
 Memory:       1 B
+Disk Used:    1 B
 Disk Total:   1 B
 User:         john
 Isolated:     yes

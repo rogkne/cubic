@@ -1,6 +1,7 @@
 use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::Result;
+use crate::qemu::QemuImg;
 use crate::util;
 use crate::view::{Alignment, TableView};
 use clap::Parser;
@@ -45,13 +46,14 @@ impl Command for ListInstanceCommand {
             }
 
             let row = view.add_row();
-            let disk = match &instance.disk_used {
-                Some(used) => format!(
+            let image = context.get_env().get_instance_image_file(instance_name);
+            let disk = match QemuImg::new(context.get_system()).get_image_info(&image) {
+                Some(info) => format!(
                     "{}/{}",
-                    used.to_value_in(&instance.disk_capacity),
-                    instance.disk_capacity.to_size()
+                    info.actual_size.to_value_in(&info.virtual_size),
+                    info.virtual_size.to_size()
                 ),
-                None => instance.disk_capacity.to_size(),
+                None => String::new(),
             };
             let running = util::to_yes_no(context.get_monitor(&instance).is_running());
             row.add(instance_name, Alignment::Left)
@@ -80,6 +82,7 @@ mod tests {
         let mut builder = ContextBuilder::new(SystemMock::new());
         builder.get_store().add_instances(instances);
         builder.set_running(running);
+        builder.add_image_info("test", 512 * 1024, 1048576, &[]);
         builder
     }
 
@@ -91,8 +94,6 @@ mod tests {
                 user: UserName::from_str("cubic").unwrap(),
                 cpus: 1,
                 mem: DataSize::new(1024),
-                disk_used: Some(DataSize::new(512 * 1024)),
-                disk_capacity: DataSize::new(1048576),
                 os: Some("ubuntu:24.04".to_string()),
                 ssh_port: 9000,
                 hostfwd: Vec::new(),
@@ -104,7 +105,6 @@ mod tests {
                 user: UserName::from_str("cubic").unwrap(),
                 cpus: 5,
                 mem: DataSize::new(0),
-                disk_capacity: DataSize::new(5000),
                 ssh_port: 9000,
                 hostfwd: Vec::new(),
                 ..Instance::default()
@@ -128,7 +128,7 @@ mod tests {
             "\
 Name    OS             Arch    vCPUs   Memory         Disk   Running
 test    ubuntu:24.04   amd64       1   1024 B   512/1024 K        no
-test2                  amd64       5      0 B       5000 B        no
+test2                  amd64       5      0 B                     no
 "
         );
     }
@@ -150,8 +150,8 @@ test2                  amd64       5      0 B       5000 B        no
         assert_eq!(
             system.get_output(),
             "\
-Name    OS   Arch    vCPUs   Memory     Disk   Running
-test2        amd64       5      0 B   5000 B       yes
+Name    OS   Arch    vCPUs   Memory   Disk   Running
+test2        amd64       5      0 B              yes
 "
         );
     }
