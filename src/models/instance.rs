@@ -1,4 +1,4 @@
-use crate::models::{Arch, DataSize, PortForward, Snapshot, UserName};
+use crate::models::{Arch, DataSize, PortForward, UserName};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14,12 +14,6 @@ pub struct Instance {
     pub os: Option<String>,
     pub cpus: u16,
     pub mem: DataSize,
-    #[serde(skip)]
-    pub disk_used: Option<DataSize>,
-    /// Read back from the disk image, never written to the config
-    #[serde(skip)]
-    pub snapshots: Vec<Snapshot>,
-    pub disk_capacity: DataSize,
     pub ssh_port: u16,
     #[serde(default)]
     pub hostfwd: Vec<PortForward>,
@@ -39,10 +33,6 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn has_snapshot(&self, name: &str) -> bool {
-        self.snapshots.iter().any(|snapshot| snapshot.name == name)
-    }
-
     pub fn get_shell(&self) -> &str {
         if self.is_alpine() {
             "/bin/ash"

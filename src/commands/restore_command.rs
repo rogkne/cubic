@@ -2,6 +2,7 @@ use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::{Error, Result};
 use crate::models::SnapshotName;
+use crate::qemu::QemuImg;
 use crate::view::ConfirmDialog;
 use clap::Parser;
 
@@ -38,13 +39,14 @@ pub struct RestoreCommand {
 impl Command for RestoreCommand {
     async fn run(&self, context: &commands::Context) -> Result<u8> {
         let console = context.get_console();
-        let instance_store = context.get_instance_store();
         let instance_name = self.snapshot.get_instance();
         let snapshot_name = self.snapshot.as_str();
 
         let instance = LoadInstanceAction::new().run(context, instance_name.as_str())?;
 
-        if !instance.has_snapshot(snapshot_name) {
+        let image = context.get_env().get_instance_image_file(&instance.name);
+        let qemu_img = QemuImg::new(context.get_system());
+        if !qemu_img.has_snapshot(&image, snapshot_name) {
             return Err(Error::UnknownSnapshot(
                 instance_name.to_string(),
                 snapshot_name.to_string(),
@@ -67,7 +69,7 @@ impl Command for RestoreCommand {
         .run(context)
         .await?;
 
-        instance_store.restore_snapshot(&instance, snapshot_name)?;
+        qemu_img.restore_snapshot(&image, snapshot_name)?;
 
         console.print(&format!("Successfully restored {}", self.snapshot));
         Ok(0)
@@ -78,10 +80,10 @@ impl Command for RestoreCommand {
 mod tests {
     use super::*;
     use crate::commands::ContextBuilder;
-    use crate::models::{Instance, Snapshot};
+    use crate::models::Instance;
     use crate::platform::SystemMock;
     use std::str::FromStr;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     fn build_command(target: &str, yes: bool) -> RestoreCommand {
         RestoreCommand {
@@ -90,59 +92,52 @@ mod tests {
         }
     }
 
+    // Returns the context and a check whether test/clean was restored
     fn build_context(
         system: SystemMock,
-        instances: Vec<Instance>,
-    ) -> (commands::Context, Arc<Mutex<Vec<String>>>) {
+        snapshots: &[&str],
+    ) -> (commands::Context, impl Fn() -> bool) {
         let mut builder = ContextBuilder::new(system);
-        builder.get_store().add_instances(instances);
-        let snapshots = Arc::clone(&builder.get_store().snapshots);
-        (builder.build(), snapshots)
-    }
-
-    fn build_instance(snapshots: Vec<&str>) -> Instance {
-        Instance {
+        builder.get_store().add_instances(vec![Instance {
             name: "test".to_string(),
-            snapshots: snapshots
-                .iter()
-                .map(|name| Snapshot {
-                    name: name.to_string(),
-                })
-                .collect(),
             ..Instance::default()
-        }
+        }]);
+        builder.add_image_info("test", 0, 0, snapshots);
+        let restore = builder.add_snapshot_command("-a", "test", "clean");
+        let system = Arc::clone(builder.get_system());
+        let was_restored = move || system.get_executed_commands().contains(&restore);
+        (builder.build(), was_restored)
     }
 
     #[tokio::test]
     async fn test_restore_snapshot() {
-        let (context, snapshots) =
-            build_context(SystemMock::new(), vec![build_instance(vec!["clean"])]);
+        let (context, was_restored) = build_context(SystemMock::new(), &["clean"]);
 
         build_command("test/clean", true)
             .run(&context)
             .await
             .unwrap();
 
-        assert_eq!(*snapshots.lock().unwrap(), vec!["restore test/clean"]);
+        assert!(was_restored());
     }
 
     #[tokio::test]
     async fn test_a_declined_confirmation_leaves_the_disk_alone() {
         let system = SystemMock::new();
         system.push_input("n");
-        let (context, snapshots) = build_context(system, vec![build_instance(vec!["clean"])]);
+        let (context, was_restored) = build_context(system, &["clean"]);
 
         build_command("test/clean", false)
             .run(&context)
             .await
             .unwrap();
 
-        assert!(snapshots.lock().unwrap().is_empty());
+        assert!(!was_restored());
     }
 
     #[tokio::test]
     async fn test_reject_an_unknown_snapshot() {
-        let (context, _) = build_context(SystemMock::new(), vec![build_instance(vec!["deps"])]);
+        let (context, _) = build_context(SystemMock::new(), &["deps"]);
 
         assert!(matches!(
             build_command("test/clean", true).run(&context).await,

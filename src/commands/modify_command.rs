@@ -1,7 +1,8 @@
 use crate::actions::LoadInstanceAction;
 use crate::commands::{self, Command};
 use crate::error::{Error, Result};
-use crate::models::{DataSize, MIN_DISK, PortForward, ResourceAllocator};
+use crate::models::{DataSize, PortForward, ResourceAllocator};
+use crate::qemu::QemuImg;
 use clap::{ArgAction, Parser};
 
 /// Modify a VM instance
@@ -96,29 +97,29 @@ impl Command for ModifyCommand {
             instance.mem = memory.clone();
         }
 
+        let mut disk = self.disk.clone();
         for warning in ResourceAllocator::enforce_minimums(
             &mut instance.cpus,
             &mut instance.mem,
-            &mut instance.disk_capacity,
+            disk.as_mut(),
         ) {
             console.warn(&warning);
         }
 
-        if let Some(disk) = &self.disk {
+        if let Some(disk) = &disk {
             if is_running {
                 return Err(Error::InstanceNotStopped(instance.name.to_string()));
             }
 
-            let mut size = disk.get_bytes() as u64;
-            if size < MIN_DISK as u64 {
-                console.warn(&format!(
-                    "Disk raised from {} to {} (minimum usable value).",
-                    disk.to_size(),
-                    DataSize::new(MIN_DISK).to_size()
-                ));
-                size = MIN_DISK as u64;
+            let image = context.get_env().get_instance_image_file(&instance.name);
+            let qemu_img = QemuImg::new(context.get_system());
+            // Without image info, qemu-img resize still refuses to shrink
+            let info = qemu_img.get_image_info(&image);
+            if info.is_some_and(|info| info.virtual_size.get_bytes() >= disk.get_bytes()) {
+                return Err(Error::CannotShrinkDisk(instance.name.to_string()));
             }
-            instance_store.resize(&mut instance, size)?;
+
+            qemu_img.resize(&image, disk.get_bytes() as u64)?;
         }
 
         if self.isolate {
@@ -152,7 +153,6 @@ mod tests {
             name: "test".to_string(),
             cpus: 2,
             mem: DataSize::new(GIB),
-            disk_capacity: DataSize::new(GIB),
             ..Instance::default()
         }]);
         let system = Arc::clone(builder.get_system());
@@ -174,7 +174,6 @@ mod tests {
             name: "test".to_string(),
             cpus: 2,
             mem: DataSize::new(GIB),
-            disk_capacity: DataSize::new(GIB),
             ..Instance::default()
         }]);
         builder.set_running(&["test"]);
@@ -210,5 +209,26 @@ mod tests {
 
         let monitor = system.get_socket_output(Environment::default().get_monitor_socket("test"));
         assert!(monitor.contains("hostfwd_add"));
+    }
+
+    #[tokio::test]
+    async fn test_modify_rejects_a_smaller_disk() {
+        let mut builder = ContextBuilder::new(SystemMock::new());
+        builder.get_store().add_instances(vec![Instance {
+            name: "test".to_string(),
+            ..Instance::default()
+        }]);
+        builder.add_image_info("test", 0, 4 * GIB as u64, &[]);
+        let system = Arc::clone(builder.get_system());
+        let context = builder.build();
+
+        let result = ModifyCommand::try_parse_from(["modify", "test", "--disk", "2G"])
+            .unwrap()
+            .run(&context)
+            .await;
+
+        assert!(matches!(result, Err(Error::CannotShrinkDisk(name)) if name == "test"));
+        let commands = system.get_executed_commands();
+        assert!(!commands.iter().any(|c| c.starts_with("qemu-img resize")));
     }
 }

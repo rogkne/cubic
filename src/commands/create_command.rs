@@ -153,11 +153,6 @@ impl CreateCommand {
                 .clone()
                 .or_else(|| template.and_then(|t| t.memory.clone()))
                 .unwrap_or(default_mem),
-            disk_capacity: self
-                .disk
-                .clone()
-                .or_else(|| template.and_then(|t| t.disk.clone()))
-                .unwrap_or(DEFAULT_DISK_SIZE),
             ssh_port,
             hostfwd: if self.port.is_empty() {
                 template.map(|t| t.ports.clone()).unwrap_or_default()
@@ -173,6 +168,13 @@ impl CreateCommand {
 }
 
 impl CreateCommand {
+    fn resolve_disk(&self, template: Option<&Template>) -> DataSize {
+        self.disk
+            .clone()
+            .or_else(|| template.and_then(|t| t.disk.clone()))
+            .unwrap_or(DEFAULT_DISK_SIZE)
+    }
+
     fn resolve_name(&self, context: &Context) -> InstanceName {
         self.instance_name.clone().unwrap_or_else(|| {
             // The generator is endless, so there is always a name.
@@ -229,10 +231,11 @@ impl CreateCommand {
             )
         };
 
+        let mut disk = self.resolve_disk(template.as_ref());
         for warning in ResourceAllocator::enforce_minimums(
             &mut instance.cpus,
             &mut instance.mem,
-            &mut instance.disk_capacity,
+            Some(&mut disk),
         ) {
             console.warn(&warning);
         }
@@ -242,12 +245,12 @@ impl CreateCommand {
             instance.name,
             instance.cpus,
             instance.mem.to_size(),
-            instance.disk_capacity.to_size(),
+            disk.to_size(),
             instance.ssh_port,
         ));
 
         let image_path = &env.get_image_file(&image.to_file_name());
-        CreateInstanceAction::new().run(context, image_path, instance, auto_remove)?;
+        CreateInstanceAction::new().run(context, image_path, instance, Some(&disk), auto_remove)?;
 
         Ok(name)
     }
@@ -326,6 +329,12 @@ mod tests {
         )
     }
 
+    fn resolve_disk_from(args: &[&str], template: Option<&Template>) -> DataSize {
+        CreateCommand::try_parse_from(args)
+            .unwrap()
+            .resolve_disk(template)
+    }
+
     fn build_image() -> Image {
         Image {
             distro: "debian".to_string(),
@@ -367,7 +376,10 @@ run = ["sudo apt update", "sudo apt install vim"]
         assert_eq!(instance.user.as_str(), "john");
         assert_eq!(instance.cpus, 4);
         assert_eq!(instance.mem.get_bytes(), 4 * GIB);
-        assert_eq!(instance.disk_capacity.get_bytes(), 200 * GIB);
+        assert_eq!(
+            resolve_disk_from(&["create", "web"], Some(&template)).get_bytes(),
+            200 * GIB
+        );
         assert_eq!(instance.hostfwd.len(), 1);
         assert!(instance.isolate);
         assert_eq!(
@@ -403,7 +415,8 @@ run = ["sudo apt update", "sudo apt install vim"]
         assert_eq!(instance.user.as_str(), "janne");
         assert_eq!(instance.cpus, 8);
         assert_eq!(instance.mem.get_bytes(), 2 * GIB);
-        assert_eq!(instance.disk_capacity.get_bytes(), 50 * GIB);
+        let disk = resolve_disk_from(&["create", "web", "--disk", "50G"], Some(&template));
+        assert_eq!(disk.get_bytes(), 50 * GIB);
         assert_eq!(instance.hostfwd.len(), 1);
         assert_eq!(instance.hostfwd[0].to_qemu(), "tcp:127.0.0.1:9000-:90");
         assert!(!instance.isolate);
@@ -418,7 +431,10 @@ run = ["sudo apt update", "sudo apt install vim"]
         assert_eq!(instance.os.as_deref(), Some("debian:12"));
         assert_eq!(instance.cpus, 2);
         assert_eq!(instance.mem.get_bytes(), GIB);
-        assert_eq!(instance.disk_capacity, DEFAULT_DISK_SIZE);
+        assert_eq!(
+            resolve_disk_from(&["create", "web"], None),
+            DEFAULT_DISK_SIZE
+        );
         assert!(instance.hostfwd.is_empty());
         assert_eq!(instance.execute, None);
         assert!(!instance.isolate);

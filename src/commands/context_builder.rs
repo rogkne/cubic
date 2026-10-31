@@ -43,6 +43,32 @@ impl ContextBuilder {
         }
     }
 
+    // Seeds the qemu-img info report for the image of `instance`
+    pub fn add_image_info(&self, instance: &str, used: u64, capacity: u64, snapshots: &[&str]) {
+        let snapshots: Vec<String> = snapshots
+            .iter()
+            .map(|name| format!(r#"{{"name": "{name}"}}"#))
+            .collect();
+        let info = format!(
+            r#"{{"actual-size": {used}, "virtual-size": {capacity}, "snapshots": [{}]}}"#,
+            snapshots.join(", ")
+        );
+        let image = self.env.get_instance_image_file(instance);
+        let command = format!(
+            "qemu-img info --force-share --output json {}",
+            image.display()
+        );
+        self.system.insert_command_output(&command, info.as_bytes());
+    }
+
+    // Seeds a qemu-img snapshot call on the image of `instance` and returns it
+    pub fn add_snapshot_command(&self, flag: &str, instance: &str, snapshot: &str) -> String {
+        let image = self.env.get_instance_image_file(instance);
+        let command = format!("qemu-img snapshot {flag} {snapshot} {}", image.display());
+        self.system.insert_command_output(&command, b"");
+        command
+    }
+
     pub fn build(self) -> Context {
         Context::new(
             self.system.clone(),

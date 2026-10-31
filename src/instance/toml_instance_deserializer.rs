@@ -60,7 +60,6 @@ ssh_port = 14357
         assert_eq!(instance.user.as_str(), "cubic");
         assert_eq!(instance.cpus, 1);
         assert_eq!(instance.mem.get_bytes(), 1073741824);
-        assert_eq!(instance.disk_capacity.get_bytes(), 2361393152);
         assert_eq!(instance.ssh_port, 14357);
         assert!(instance.hostfwd.is_empty());
         assert_eq!(instance.execute, None);
@@ -96,7 +95,6 @@ ssh_host_key = "ssh-ed25519 AAAA"
         assert_eq!(instance.os.as_deref(), Some("debian:12"));
         assert_eq!(instance.cpus, 1);
         assert_eq!(instance.mem.get_bytes(), 1073741824);
-        assert_eq!(instance.disk_capacity.get_bytes(), 2361393152);
         assert_eq!(instance.ssh_port, 14357);
         assert_eq!(
             instance

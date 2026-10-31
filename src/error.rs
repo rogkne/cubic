@@ -101,9 +101,6 @@ pub enum Error {
     #[error("Cannot shrink the disk of the instance '{0}'")]
     CannotShrinkDisk(String),
 
-    #[error("Disk size for instance '{0}' is below the minimum usable size.\n\nUse at least {1}.")]
-    DiskBelowMinimum(String, String),
-
     #[error("Instance '{0}' has no snapshot '{1}'")]
     UnknownSnapshot(String, String),
 

@@ -9,10 +9,5 @@ pub trait InstanceStore {
     fn store(&self, instance: &Instance) -> Result<()>;
 
     fn rename(&self, instance: &mut Instance, new_name: &str) -> Result<()>;
-    fn resize(&self, instance: &mut Instance, size: u64) -> Result<()>;
     fn delete(&self, instance: &Instance) -> Result<()>;
-
-    fn create_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
-    fn restore_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
-    fn delete_snapshot(&self, instance: &Instance, name: &str) -> Result<()>;
 }
